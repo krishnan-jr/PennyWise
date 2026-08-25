@@ -6,6 +6,7 @@
 - Fully local app: no servers, no network calls; data persists in `localStorage`.
 - File extensions are limited to `.html`, `.js`, `.css`.
 - No ES modules: `file://` blocks them via CORS. All scripts are plain `<script>` tags sharing a single `window.ET` namespace, loaded in order (see index.html).
+- Always version control imports: Always append a version query parameter (e.g. `?v=1.0.1` or `?v=<version>`) to all `<script>`, `<link>` stylesheets, `manifest.json`, and icon asset imports in `index.html`, `manifest.json`, and `sw.js` so browser and PWA updates bypass stale caches and fetch the latest files immediately.
 
 ## Structure
 
