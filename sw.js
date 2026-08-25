@@ -1,20 +1,20 @@
-const CACHE_NAME = 'pennywise-pwa-v2';
+const CACHE_NAME = 'pennywise-pwa-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './manifest.json',
-  './css/styles.css',
-  './js/storage.js',
-  './js/settings.js',
-  './js/income.js',
-  './js/expenses.js',
-  './js/events.js',
-  './js/dashboard.js',
-  './js/app.js',
-  './icons/icon.svg',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './manifest.json?v=1.0.1',
+  './css/styles.css?v=1.0.1',
+  './js/storage.js?v=1.0.1',
+  './js/settings.js?v=1.0.1',
+  './js/income.js?v=1.0.1',
+  './js/expenses.js?v=1.0.1',
+  './js/events.js?v=1.0.1',
+  './js/dashboard.js?v=1.0.1',
+  './js/app.js?v=1.0.1',
+  './icons/icon.svg?v=1.0.1',
+  './icons/icon-192.png?v=1.0.1',
+  './icons/icon-512.png?v=1.0.1',
+  './icons/apple-touch-icon.png?v=1.0.1'
 ];
 
 self.addEventListener('install', (event) => {
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       if (cachedResponse) {
         // Fetch in background to update cache (stale-while-revalidate)
         fetch(event.request).then((networkResponse) => {

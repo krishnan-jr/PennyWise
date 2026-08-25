@@ -410,12 +410,31 @@
     modal.hidden = false;
   };
 
-  // Wire Drawer Install Button
-  const drawerInstallBtn = document.getElementById('drawer-install-btn');
-  if (drawerInstallBtn) {
-    drawerInstallBtn.addEventListener('click', () => {
+  // App Reload & Cache Purge Helper
+  ET.reloadApp = async function () {
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.update();
+        }
+      }
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+    } catch (e) {
+      console.warn('App reload notice:', e);
+    }
+    window.location.reload();
+  };
+
+  // Wire Drawer Reload Button
+  const drawerReloadBtn = document.getElementById('drawer-reload-btn');
+  if (drawerReloadBtn) {
+    drawerReloadBtn.addEventListener('click', () => {
       closeDrawer();
-      ET.showInstallPrompt();
+      ET.reloadApp();
     });
   }
 

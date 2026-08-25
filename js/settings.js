@@ -69,12 +69,13 @@
         <section class="panel" style="grid-column: 1 / -1;">
           <div class="panel-header">
             <div class="panel-title-wrap">
-              <h3 class="panel-title">App Installation & Offline Usage</h3>
+              <h3 class="panel-title">App Version & Offline Usage</h3>
             </div>
             <span class="panel-badge" id="pwa-status-badge">PWA</span>
           </div>
-          <p class="hint">Install Pennywise directly to your home screen or desktop for a fullscreen app experience, offline caching, and instant launch.</p>
+          <p class="hint">Fetch latest app updates, refresh cached static files, or install Pennywise to your home screen.</p>
           <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button id="settings-reload-btn" class="btn btn-secondary" type="button">Reload App</button>
             <button id="settings-install-btn" class="btn btn-secondary" type="button">Install / Add to Home Screen</button>
             <span id="pwa-install-note" style="font-size: 0.82rem; color: var(--text-muted);"></span>
           </div>
@@ -118,6 +119,17 @@
       if (pwaInstallBtn) pwaInstallBtn.textContent = 'App Installed ✓';
     } else {
       if (pwaNote) pwaNote.textContent = 'Available for iOS Safari, Android, and Desktop.';
+    }
+
+    const pwaReloadBtn = container.querySelector('#settings-reload-btn');
+    if (pwaReloadBtn) {
+      pwaReloadBtn.addEventListener('click', () => {
+        if (ET.reloadApp) {
+          ET.reloadApp();
+        } else {
+          window.location.reload();
+        }
+      });
     }
 
     if (pwaInstallBtn) {
