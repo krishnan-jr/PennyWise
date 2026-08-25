@@ -25,7 +25,7 @@
 - Settings: `{ currency, defaultIncome }` under key `et.settings`. Currencies: INR, USD, AED, EUR, GBP.
 - Income: default applies to all months; per-month overrides stored in `et.incomeOverrides` as `{ "YYYY-MM": amount }`.
 - Expenses (`et.expenses`): `{ id, type, name, amount, category, startDate, endDate }`.
-  - Types: `emi`, `subscription`, `sip` (recurring monthly, optional end date; open-ended if none), `one_time` (One-Off), `adhoc` (Miscellaneous; single month or date range with optional `endDate`).
+  - Types: `household` (Household & Living; recurring monthly), `emi`, `subscription`, `sip` (recurring monthly, optional end date; open-ended if none), `one_time` (One-Off), `adhoc` (Miscellaneous; single month or date range with optional `endDate`).
   - Recurring expenses count toward every month from `startDate` to `endDate` (YYYY-MM string comparison). If `endDate` is given for one-off or adhoc, it applies across that month range.
 - Events & Programs (`et.events`): `{ id, name, type, budget, startDate, endDate, status, notes, items: [{ id, name, category, quotedAmount, paidAmount, status, dueDate, notes }] }`.
   - Statuses for items: `unpaid` (0 paid), `partial` (advance paid, balance pending), `paid` (fully settled).

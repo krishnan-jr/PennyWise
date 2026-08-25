@@ -32,6 +32,8 @@
   --warning-bg: #fffbeb;
 
   /* Expense Type Badges */
+  --tag-household-bg: #ffe4e6;
+  --tag-household-text: #be123c;
   --tag-emi-bg: #ede9fe;
   --tag-emi-text: #6d28d9;
   --tag-sub-bg: #e0f2fe;
@@ -1733,6 +1735,11 @@ textarea:focus {
   text-transform: capitalize;
   letter-spacing: 0.01em;
   white-space: nowrap;
+}
+
+.tag-household {
+  background: var(--tag-household-bg);
+  color: var(--tag-household-text);
 }
 
 .tag-emi {

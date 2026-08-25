@@ -671,8 +671,8 @@
       editingExpenseId = null; // if deleted
     }
 
-    const currentType = editingExpense ? editingExpense.type : 'emi';
-    const isRecurring = ['emi', 'subscription', 'sip'].includes(currentType);
+    const currentType = editingExpense ? editingExpense.type : 'household';
+    const isRecurring = ET.isRecurring ? ET.isRecurring(currentType) : ['household', 'emi', 'subscription', 'sip'].includes(currentType);
 
     function dateFields(startVal, endVal) {
       return `
@@ -690,8 +690,8 @@
     }
 
     const allExpenses = ET.getExpenses().slice().sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
-    const recurringExpenses = allExpenses.filter((e) => ['emi', 'subscription', 'sip'].includes(e.type));
-    const oneOffExpenses = allExpenses.filter((e) => !['emi', 'subscription', 'sip'].includes(e.type));
+    const recurringExpenses = allExpenses.filter((e) => ET.isRecurring ? ET.isRecurring(e.type) : ['household', 'emi', 'subscription', 'sip'].includes(e.type));
+    const oneOffExpenses = allExpenses.filter((e) => ET.isRecurring ? !ET.isRecurring(e.type) : !['household', 'emi', 'subscription', 'sip'].includes(e.type));
 
     const displayedExpenses = expenseFilter === 'recurring'
       ? recurringExpenses
@@ -711,7 +711,7 @@
         <form id="expense-form" class="form-grid">
           <div class="field">
             <span class="field-label">Expense Name</span>
-            <input name="name" type="text" required placeholder="e.g. Netflix, Car Loan, Groceries" value="${editingExpense ? escapeHtml(editingExpense.name) : ''}" />
+            <input name="name" type="text" required placeholder="e.g. Rent, Groceries, Netflix, Loan" value="${editingExpense ? escapeHtml(editingExpense.name) : ''}" />
           </div>
           <div class="field">
             <span class="field-label">Amount</span>
@@ -720,6 +720,7 @@
           <div class="field">
             <span class="field-label">Type</span>
             <select name="type">
+              <option value="household" ${currentType === 'household' ? 'selected' : ''}>Household / Living</option>
               <option value="emi" ${currentType === 'emi' ? 'selected' : ''}>EMI</option>
               <option value="subscription" ${currentType === 'subscription' ? 'selected' : ''}>Subscription</option>
               <option value="sip" ${currentType === 'sip' ? 'selected' : ''}>SIP</option>
@@ -729,13 +730,13 @@
           </div>
           <div class="field">
             <span class="field-label">Category (optional)</span>
-            <input name="category" type="text" placeholder="e.g. Housing, Entertainment" value="${editingExpense && editingExpense.category ? escapeHtml(editingExpense.category) : ''}" />
+            <input name="category" type="text" placeholder="e.g. Housing, Groceries, Utilities" value="${editingExpense && editingExpense.category ? escapeHtml(editingExpense.category) : ''}" />
           </div>
           <div id="type-fields" class="form-grid" style="grid-column: 1 / -1; margin-top: 0.25rem;">
             ${dateFields(editingExpense ? editingExpense.startDate : null, editingExpense ? editingExpense.endDate : null)}
           </div>
 
-          ${editingExpense && ['emi', 'subscription', 'sip'].includes(editingExpense.type) ? `
+          ${editingExpense && (ET.isRecurring ? ET.isRecurring(editingExpense.type) : ['household', 'emi', 'subscription', 'sip'].includes(editingExpense.type)) ? `
             <div id="price-change-section" class="price-change-card" style="grid-column: 1 / -1;">
               <div class="price-change-header">
                 <span class="price-change-title">Rate / Price Revision Options</span>
@@ -877,7 +878,7 @@
         const mode = data.get('priceChangeMode');
         const effectiveDate = data.get('effectiveDate');
         const origExp = ET.getExpenseById(editingExpenseId);
-        const isRecurring = origExp && ['emi', 'subscription', 'sip'].includes(origExp.type);
+        const isRecurring = origExp && (ET.isRecurring ? ET.isRecurring(origExp.type) : ['household', 'emi', 'subscription', 'sip'].includes(origExp.type));
         const amountChanged = origExp && origExp.amount !== newAmount;
 
         if (isRecurring && amountChanged && mode === 'effective' && effectiveDate) {

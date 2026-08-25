@@ -4,6 +4,7 @@
   const ET = (window.ET = window.ET || {});
 
   ET.EXPENSE_TYPES = [
+    { id: 'household', label: 'Household', recurring: true },
     { id: 'emi', label: 'EMI', recurring: true },
     { id: 'subscription', label: 'Subscription', recurring: true },
     { id: 'sip', label: 'SIP', recurring: true },

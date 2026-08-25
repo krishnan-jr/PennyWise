@@ -168,6 +168,7 @@
 
     // Type configuration for badges
     const TYPE_CONFIG = {
+      household: { label: 'Household', bg: '#ffe4e6', text: '#be123c' },
       subscription: { label: 'Subscription', bg: '#e0f2fe', text: '#0369a1' },
       emi: { label: 'EMI', bg: '#ede9fe', text: '#6d28d9' },
       sip: { label: 'SIP', bg: '#e0e7ff', text: '#3730a3' },
