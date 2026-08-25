@@ -109,12 +109,13 @@ button, input, select, textarea {
   box-shadow: var(--shadow-sm);
   width: 100%;
   max-width: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .topbar-inner {
   width: 100%;
   max-width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem calc(1rem + env(safe-area-inset-right, 0px)) 0.75rem calc(1rem + env(safe-area-inset-left, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -219,7 +220,7 @@ button, input, select, textarea {
   box-shadow: -4px 0 24px rgba(15, 23, 42, 0.15);
   display: flex;
   flex-direction: column;
-  padding: 1.25rem;
+  padding: calc(1.25rem + env(safe-area-inset-top, 0px)) calc(1.25rem + env(safe-area-inset-right, 0px)) calc(1.25rem + env(safe-area-inset-bottom, 0px)) calc(1.25rem + env(safe-area-inset-left, 0px));
   box-sizing: border-box;
   animation: drawerSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1977,7 +1978,7 @@ textarea:focus {
   .topbar-inner {
     max-width: 1000px;
     margin: 0 auto;
-    padding: 0.85rem 1.5rem;
+    padding: 0.85rem calc(1.5rem + env(safe-area-inset-right, 0px)) 0.85rem calc(1.5rem + env(safe-area-inset-left, 0px));
   }
 
   /* Navigation elevates into the topbar header on larger screens */
