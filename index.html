@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f3e36" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <title>Pennywise • Every Penny Counts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-icon">PW</div>
+        <div class="brand-text">
+          <h1>Pennywise</h1>
+          <span class="brand-tag">Every Penny Counts</span>
+        </div>
+      </div>
+
+      <!-- Desktop Header Pill Navigation -->
+      <nav class="nav" aria-label="Main Navigation">
+        <a href="#dashboard" class="nav-btn active" data-view="dashboard">Dashboard</a>
+        <a href="#expenses" class="nav-btn" data-view="expenses">Expenses</a>
+        <a href="#events" class="nav-btn" data-view="events">Events</a>
+        <a href="#settings" class="nav-btn" data-view="settings">Settings</a>
+      </nav>
+
+      <!-- Mobile Hamburger Button -->
+      <button id="hamburger-btn" class="hamburger-btn" aria-label="Open Navigation Menu" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Slide-over Drawer Navigation -->
+  <div id="mobile-drawer" class="drawer-overlay" hidden>
+    <div class="drawer-panel" role="dialog" aria-modal="true" aria-label="Mobile Navigation">
+      <div class="drawer-header">
+        <div class="brand">
+          <div class="brand-icon">PW</div>
+          <div class="brand-text">
+            <h2 class="drawer-brand-title">Pennywise</h2>
+            <span class="brand-tag">Every Penny Counts</span>
+          </div>
+        </div>
+        <button id="drawer-close-btn" class="modal-close-btn" aria-label="Close navigation">&times;</button>
+      </div>
+      <nav class="drawer-nav">
+        <a href="#dashboard" class="drawer-nav-item active" data-view="dashboard">
+          <span class="drawer-nav-label">Dashboard</span>
+        </a>
+        <a href="#expenses" class="drawer-nav-item" data-view="expenses">
+          <span class="drawer-nav-label">Expenses</span>
+        </a>
+        <a href="#events" class="drawer-nav-item" data-view="events">
+          <span class="drawer-nav-label">Events & Programs</span>
+        </a>
+        <a href="#settings" class="drawer-nav-item" data-view="settings">
+          <span class="drawer-nav-label">Settings</span>
+        </a>
+      </nav>
+    </div>
+  </div>
+
+  <main>
+    <div id="view-dashboard" class="view-content"></div>
+    <div id="view-expenses" class="view-content" hidden></div>
+    <div id="view-events" class="view-content" hidden></div>
+    <div id="view-settings" class="view-content" hidden></div>
+  </main>
+
+  <!-- Floating Action Button for Quick Expense Entry -->
+  <button id="quick-add-fab" class="fab-btn" title="Quick Add Expense" aria-label="Quick Add Expense">
+    <span>+</span>
+  </button>
+
+  <!-- Quick Add Expense Modal -->
+  <div id="quick-add-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="modal-title" class="modal-title">Quick Add Expense</h3>
+        <button id="modal-close-btn" class="modal-close-btn" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="modal-expense-form" class="form-grid">
+        <div class="field">
+          <span class="field-label">Expense Name</span>
+          <input name="name" type="text" required placeholder="e.g. Netflix, SIP, Groceries" />
+        </div>
+        <div class="field">
+          <span class="field-label">Amount</span>
+          <input name="amount" type="number" min="0" step="any" required placeholder="0.00" />
+        </div>
+        <div class="field">
+          <span class="field-label">Type</span>
+          <select name="type">
+            <option value="emi">EMI</option>
+            <option value="subscription">Subscription</option>
+            <option value="sip">SIP</option>
+            <option value="one_time">One-Off</option>
+            <option value="adhoc">Miscellaneous</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="field-label">Category (optional)</span>
+          <input name="category" type="text" placeholder="e.g. Housing, Entertainment" />
+        </div>
+        <div id="modal-type-fields" class="form-grid" style="grid-column: 1 / -1;">
+          <div class="field">
+            <span class="field-label">Start Date</span>
+            <input name="startDate" type="date" required />
+          </div>
+          <div class="field">
+            <span class="field-label">End Date (optional)</span>
+            <input name="endDate" type="date" />
+          </div>
+        </div>
+        <div class="modal-actions" style="grid-column: 1 / -1;">
+          <button type="button" id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Custom Confirmation Modal Dialog -->
+  <div id="confirm-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog confirm-dialog" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-message" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="confirm-title" class="modal-title">Confirm Action</h3>
+      </div>
+      <div class="confirm-body">
+        <p id="confirm-message" class="confirm-message">Are you sure you want to proceed?</p>
+      </div>
+      <div class="modal-actions" style="margin-top: 1.25rem;">
+        <button type="button" id="confirm-cancel-btn" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="confirm-ok-btn" class="btn btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/income.js"></script>
+  <script src="js/expenses.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
