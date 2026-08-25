@@ -113,6 +113,12 @@
       link.classList.toggle('active', link.dataset.view === route.view);
     });
 
+    // Toggle Quick Add FAB (hidden on Expenses & Settings to avoid blocking form inputs)
+    const fabEl = document.getElementById('quick-add-fab');
+    if (fabEl) {
+      fabEl.hidden = route.view === 'expenses' || route.view === 'settings';
+    }
+
     // Render active view contents
     if (route.view === 'dashboard') ET.renderDashboard(views.dashboard, state, refreshActiveView);
     if (route.view === 'expenses') ET.renderExpenseManager(views.expenses, refreshActiveView);
