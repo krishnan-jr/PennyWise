@@ -69,6 +69,20 @@
         <section class="panel" style="grid-column: 1 / -1;">
           <div class="panel-header">
             <div class="panel-title-wrap">
+              <h3 class="panel-title">App Installation & Offline Usage</h3>
+            </div>
+            <span class="panel-badge" id="pwa-status-badge">PWA</span>
+          </div>
+          <p class="hint">Install Pennywise directly to your home screen or desktop for a fullscreen app experience, offline caching, and instant launch.</p>
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button id="settings-install-btn" class="btn btn-secondary" type="button">Install / Add to Home Screen</button>
+            <span id="pwa-install-note" style="font-size: 0.82rem; color: var(--text-muted);"></span>
+          </div>
+        </section>
+
+        <section class="panel" style="grid-column: 1 / -1;">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
               <h3 class="panel-title">Data Backup & Restore</h3>
             </div>
             <span class="panel-badge">Local Storage</span>
@@ -91,6 +105,28 @@
         <button id="save-settings" class="btn btn-primary">Save Settings</button>
       </div>
     `;
+
+    // Update PWA Status in Settings
+    const isStandalone = ET.isStandalone && ET.isStandalone();
+    const pwaBadge = container.querySelector('#pwa-status-badge');
+    const pwaNote = container.querySelector('#pwa-install-note');
+    const pwaInstallBtn = container.querySelector('#settings-install-btn');
+
+    if (isStandalone) {
+      if (pwaBadge) pwaBadge.textContent = 'Installed';
+      if (pwaNote) pwaNote.textContent = 'Pennywise is running as an installed standalone app.';
+      if (pwaInstallBtn) pwaInstallBtn.textContent = 'App Installed ✓';
+    } else {
+      if (pwaNote) pwaNote.textContent = 'Available for iOS Safari, Android, and Desktop.';
+    }
+
+    if (pwaInstallBtn) {
+      pwaInstallBtn.addEventListener('click', () => {
+        if (ET.showInstallPrompt) {
+          ET.showInstallPrompt();
+        }
+      });
+    }
 
     function showStatus(message, type) {
       const statusEl = container.querySelector('#backup-status');

@@ -281,6 +281,21 @@ button, input, select, textarea {
   box-shadow: 0 2px 8px rgba(15, 62, 54, 0.25);
 }
 
+.drawer-footer {
+  margin-top: auto;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.drawer-install-btn {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  padding: 0.65rem;
+  border-radius: var(--radius-md);
+}
+
 /* Hide desktop pill nav on mobile */
 .nav {
   display: none;
@@ -2146,4 +2161,93 @@ textarea:focus {
     background: var(--brand-primary-hover);
     box-shadow: 0 6px 20px rgba(15, 62, 54, 0.4);
   }
+}
+
+/* ==========================================================================
+   PWA & iOS INSTALLATION MODAL STYLES
+   ========================================================================== */
+
+.install-dialog {
+  max-width: 440px;
+}
+
+.install-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.install-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.step-text {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.step-text strong {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--text);
+  margin-bottom: 0.15rem;
+}
+
+.step-text p {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.share-icon-glyph,
+.plus-icon-glyph {
+  display: inline-block;
+  padding: 1px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: bold;
+  color: var(--brand-primary);
+  font-size: 0.95rem;
+  vertical-align: middle;
+}
+
+.install-success-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--positive-bg);
+  color: var(--positive-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.85rem;
+  font-size: 1.6rem;
+  font-weight: bold;
 }

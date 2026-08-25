@@ -258,6 +258,161 @@
     });
   }
 
+  // PWA Install Handlers & Platform Detection
+  let deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    console.log('Pennywise PWA installed successfully.');
+  });
+
+  ET.isStandalone = function () {
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true ||
+      document.referrer.includes('android-app://')
+    );
+  };
+
+  ET.isIOS = function () {
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+  };
+
+  ET.showInstallPrompt = function () {
+    const modal = document.getElementById('pwa-install-modal');
+    const bodyEl = document.getElementById('install-modal-body');
+    const actionBtn = document.getElementById('install-modal-action-btn');
+    const dismissBtn = document.getElementById('install-modal-dismiss-btn');
+    const closeBtn = document.getElementById('install-modal-close-btn');
+
+    if (!modal || !bodyEl) return;
+
+    function closeModal() {
+      modal.hidden = true;
+    }
+
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (dismissBtn) dismissBtn.onclick = closeModal;
+
+    modal.onclick = (e) => {
+      if (e.target === modal) closeModal();
+    };
+
+    if (ET.isStandalone()) {
+      bodyEl.innerHTML = `
+        <div class="install-step-card" style="text-align: center; padding: 1.25rem 0.5rem;">
+          <div class="install-success-icon">✓</div>
+          <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 0.35rem;">Pennywise is Already Installed</h4>
+          <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.4;">You are running Pennywise in standalone app mode with offline caching enabled.</p>
+        </div>
+      `;
+      if (actionBtn) actionBtn.style.display = 'none';
+      modal.hidden = false;
+      return;
+    }
+
+    if (ET.isIOS()) {
+      bodyEl.innerHTML = `
+        <div class="install-guide">
+          <p style="font-size: 0.88rem; color: var(--text); margin-bottom: 1rem; line-height: 1.5;">
+            Apple Safari requires manual installation to your iPhone / iPad home screen:
+          </p>
+          <div class="install-steps">
+            <div class="install-step-item">
+              <span class="step-num">1</span>
+              <div class="step-text">
+                <strong>Tap the Share Button</strong>
+                <p>Tap the <strong>Share icon</strong> (the box with an upward arrow) in Safari's bottom toolbar.</p>
+              </div>
+            </div>
+            <div class="install-step-item">
+              <span class="step-num">2</span>
+              <div class="step-text">
+                <strong>Select "Add to Home Screen"</strong>
+                <p>Scroll down the share options and tap <strong>Add to Home Screen</strong> (+).</p>
+              </div>
+            </div>
+            <div class="install-step-item">
+              <span class="step-num">3</span>
+              <div class="step-text">
+                <strong>Tap "Add"</strong>
+                <p>Tap <strong>Add</strong> in the top-right corner to place Pennywise on your home screen.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      if (actionBtn) actionBtn.style.display = 'none';
+      modal.hidden = false;
+      return;
+    }
+
+    if (deferredPrompt) {
+      bodyEl.innerHTML = `
+        <div class="install-guide">
+          <p style="font-size: 0.9rem; color: var(--text); margin-bottom: 1rem; line-height: 1.5;">
+            Install Pennywise for a dedicated window experience, faster offline launch, and home screen access.
+          </p>
+        </div>
+      `;
+      if (actionBtn) {
+        actionBtn.style.display = 'inline-flex';
+        actionBtn.onclick = async () => {
+          closeModal();
+          deferredPrompt.prompt();
+          await deferredPrompt.userChoice;
+          deferredPrompt = null;
+        };
+      }
+      modal.hidden = false;
+      return;
+    }
+
+    // Default desktop / generic browser guide
+    bodyEl.innerHTML = `
+      <div class="install-guide">
+        <p style="font-size: 0.88rem; color: var(--text); margin-bottom: 1rem; line-height: 1.5;">
+          To install Pennywise on your device:
+        </p>
+        <div class="install-steps">
+          <div class="install-step-item">
+            <span class="step-num">1</span>
+            <div class="step-text">
+              <strong>Check Browser Address Bar</strong>
+              <p>Look for the <strong>Install</strong> or <strong>App Available</strong> icon on the right side of the URL bar.</p>
+            </div>
+          </div>
+          <div class="install-step-item">
+            <span class="step-num">2</span>
+            <div class="step-text">
+              <strong>Click "Install Pennywise"</strong>
+              <p>Confirm the install prompt to launch Pennywise as a standalone desktop/mobile app.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    if (actionBtn) actionBtn.style.display = 'none';
+    modal.hidden = false;
+  };
+
+  // Wire Drawer Install Button
+  const drawerInstallBtn = document.getElementById('drawer-install-btn');
+  if (drawerInstallBtn) {
+    drawerInstallBtn.addEventListener('click', () => {
+      closeDrawer();
+      ET.showInstallPrompt();
+    });
+  }
+
   // Register PWA Service Worker (when running on http/https)
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     window.addEventListener('load', () => {
