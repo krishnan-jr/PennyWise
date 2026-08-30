@@ -1919,6 +1919,64 @@ textarea:focus {
   margin-top: 0.2rem;
 }
 
+/* Settlement Mode Segmented Control */
+.settlement-mode-toggle {
+  display: flex;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 3px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settlement-mode-btn {
+  flex: 1;
+  padding: 0.55rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-md) - 3px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.settlement-mode-btn:hover {
+  color: var(--text);
+}
+
+.settlement-mode-btn.active {
+  background: var(--surface);
+  color: var(--brand-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .settlement-mode-toggle {
+    flex-direction: column;
+  }
+  .settlement-mode-btn {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+  }
+}
+
+.link-btn-settle {
+  color: #0f766e !important;
+  font-weight: 700 !important;
+}
+
+.link-btn-settle:hover {
+  color: #115e59 !important;
+  text-decoration: underline;
+}
+
 /* Empty State */
 .empty-box {
   padding: 2rem 1rem;

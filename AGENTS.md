@@ -28,18 +28,20 @@
 - Expenses (`et.expenses`): `{ id, type, name, amount, category, startDate, endDate }`.
   - Types: `household` (Household & Living; recurring monthly), `emi`, `subscription`, `sip` (recurring monthly, optional end date; open-ended if none), `one_time` (One-Off), `adhoc` (Miscellaneous; single month or date range with optional `endDate`).
   - Recurring expenses count toward every month from `startDate` to `endDate` (YYYY-MM string comparison). If `endDate` is given for one-off or adhoc, it applies across that month range.
-- Events & Programs (`et.events`): `{ id, name, type, budget, startDate, endDate, status, notes, items: [{ id, name, category, quotedAmount, paidAmount, status, dueDate, notes }] }`.
-  - Statuses for items: `unpaid` (0 paid), `partial` (advance paid, balance pending), `paid` (fully settled).
+- Events & Programs (`et.events`): `{ id, name, type, budget, startDate, endDate, status, notes, items: [{ id, name, category, quotedAmount, paidAmount, settlementType, status, dueDate, notes }] }`.
+  - Item Settlement Types: `full` (single payment settled in full), `partial` (advance paid, balance pending), `unpaid` (quote logged without advance payment).
+  - Statuses for items: `unpaid` (0 paid), `partial` (advance paid, balance pending), `paid` (fully settled). Single-click settlement is available in ledger rows.
+  - Event Reports: High-resolution branded PNG report generation (`ET.exportEventToPNG`).
 - Month Exclusions (`et.excludedExpenses`): `{ "YYYY-MM": [ "expenseId1", "expenseId2" ] }`.
   - Deleting an expense from a monthly view excludes it *only for that month* without touching master records.
   - Excluded expenses can be restored with a single tap in the "Excluded This Month" panel.
   - Permanent master deletions are performed only in the Expenses tab.
 - Price Revisions (`ET.updateExpenseWithEffectiveDate`):
   - Editing the amount of a recurring expense supports choosing an effective date (e.g. Netflix price increase from 199 to 299).
-- Schema Versioning & Migrations (`CURRENT_DB_SCHEMA = "V1"`):
-  - Application maintains a constant `const CURRENT_DB_SCHEMA = "V1"` stored in code and persisted to `localStorage` under `et.schemaVersion`.
-  - JSON data backups include `schemaVersion: "V1"` in their metadata envelope.
-  - Future schema changes utilize `ET.migrateData(source, fromVersion, toVersion)` and `ET.initSchema()` to transform datasets across schema iterations on app initialization, backup export, and backup import.
+- Schema Versioning & Migrations (`CURRENT_DB_SCHEMA = "V2"`):
+  - Application maintains a constant `const CURRENT_DB_SCHEMA = "V2"` stored in code and persisted to `localStorage` under `et.schemaVersion`.
+  - JSON data backups include `schemaVersion: "V2"` in their metadata envelope.
+  - `ET.migrateData(source, fromVersion, toVersion)` and `ET.initSchema()` automatically upgrade data models (e.g. V1 -> V2 event item normalization) on startup, export, and backup import.
 - Month keys are `YYYY-MM` everywhere; year overview compares months as strings.
 
 ## Design conventions

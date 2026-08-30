@@ -70,11 +70,29 @@
     const event = list.find((e) => e.id === eventId);
     if (!event) return null;
 
-    const quoted = Number(itemData.quotedAmount) || 0;
-    const paid = Number(itemData.paidAmount) || 0;
+    let settlementType = itemData.settlementType || 'full';
+    let quoted = Number(itemData.quotedAmount) || 0;
+    let paid = Number(itemData.paidAmount) || 0;
+
+    if (settlementType === 'full') {
+      const amt = Number(itemData.totalAmount !== undefined ? itemData.totalAmount : (itemData.paidAmount || itemData.quotedAmount)) || 0;
+      quoted = amt;
+      paid = amt;
+    } else if (settlementType === 'unpaid') {
+      paid = 0;
+    }
+
     let status = 'unpaid';
-    if (paid >= quoted && quoted > 0) status = 'paid';
-    else if (paid > 0) status = 'partial';
+    if (paid >= quoted && quoted > 0) {
+      status = 'paid';
+      settlementType = 'full';
+    } else if (paid > 0) {
+      status = 'partial';
+      settlementType = 'partial';
+    } else {
+      status = 'unpaid';
+      settlementType = 'unpaid';
+    }
 
     const item = {
       id: (crypto.randomUUID && crypto.randomUUID()) || `item-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -82,6 +100,7 @@
       category: (itemData.category || '').trim(),
       quotedAmount: quoted,
       paidAmount: paid,
+      settlementType: settlementType,
       status: status,
       dueDate: itemData.dueDate || null,
       notes: (itemData.notes || '').trim()
@@ -101,11 +120,29 @@
     const idx = event.items.findIndex((i) => i.id === itemId);
     if (idx === -1) return null;
 
-    const quoted = Number(itemData.quotedAmount) || 0;
-    const paid = Number(itemData.paidAmount) || 0;
+    let settlementType = itemData.settlementType || 'full';
+    let quoted = Number(itemData.quotedAmount) || 0;
+    let paid = Number(itemData.paidAmount) || 0;
+
+    if (settlementType === 'full') {
+      const amt = Number(itemData.totalAmount !== undefined ? itemData.totalAmount : (itemData.paidAmount || itemData.quotedAmount)) || 0;
+      quoted = amt;
+      paid = amt;
+    } else if (settlementType === 'unpaid') {
+      paid = 0;
+    }
+
     let status = 'unpaid';
-    if (paid >= quoted && quoted > 0) status = 'paid';
-    else if (paid > 0) status = 'partial';
+    if (paid >= quoted && quoted > 0) {
+      status = 'paid';
+      settlementType = 'full';
+    } else if (paid > 0) {
+      status = 'partial';
+      settlementType = 'partial';
+    } else {
+      status = 'unpaid';
+      settlementType = 'unpaid';
+    }
 
     event.items[idx] = {
       ...event.items[idx],
@@ -113,6 +150,7 @@
       category: (itemData.category || '').trim(),
       quotedAmount: quoted,
       paidAmount: paid,
+      settlementType: settlementType,
       status: status,
       dueDate: itemData.dueDate || null,
       notes: (itemData.notes || '').trim()
@@ -120,6 +158,21 @@
 
     ET.save(ET.KEYS.events, list);
     return event.items[idx];
+  };
+
+  ET.settleEventItem = function (eventId, itemId) {
+    const list = ET.getEvents();
+    const event = list.find((e) => e.id === eventId);
+    if (!event || !event.items) return null;
+
+    const item = event.items.find((i) => i.id === itemId);
+    if (!item) return null;
+
+    item.paidAmount = item.quotedAmount;
+    item.status = 'paid';
+    item.settlementType = 'full';
+    ET.save(ET.KEYS.events, list);
+    return item;
   };
 
   ET.deleteEventItem = function (eventId, itemId) {
@@ -155,7 +208,6 @@
     };
   };
 
-  // UI State
   let activeEventId = null;
   let editingEventItemId = null;
 
@@ -167,34 +219,29 @@
     return activeEventId;
   };
 
-  ET.renderEvents = function (container, onChange) {
+  ET.renderEvents = function (container, refreshApp) {
     function rerender() {
-      ET.renderEvents(container, onChange);
-      if (onChange) onChange();
+      if (activeEventId) {
+        renderEventDetail(container, activeEventId, rerender, refreshApp);
+      } else {
+        renderEventsList(container, rerender, refreshApp);
+      }
     }
 
-    if (activeEventId) {
-      renderEventDetail(container, activeEventId, rerender);
-    } else {
-      renderEventsList(container, rerender);
-    }
+    rerender();
   };
 
-  function renderEventsList(container, rerender) {
-    const events = ET.getEvents().slice().sort((a, b) => {
-      const dateA = a.startDate || '9999-99-99';
-      const dateB = b.startDate || '9999-99-99';
-      return dateA < dateB ? 1 : -1;
-    });
+  function renderEventsList(container, rerender, refreshApp) {
+    const events = ET.getEvents().slice().sort((a, b) => ((a.startDate || '') < (b.startDate || '') ? 1 : -1));
 
     container.innerHTML = `
-      <!-- Create New Event Form Panel (Simplified) -->
+      <!-- Program Creation Panel -->
       <section class="panel">
         <div class="panel-header">
           <div class="panel-title-wrap">
-            <h3 class="panel-title">Create Program or Trip</h3>
+            <h3 class="panel-title">Track Program or Trip</h3>
           </div>
-          <span class="hint">Track trip budgets, wedding/function advances, and vendor quotes</span>
+          <span class="hint">Organize trips, weddings, functions, and program quotes & advances</span>
         </div>
         <form id="create-event-form" class="form-grid">
           <div class="field" style="grid-column: 1 / -1;">
@@ -273,7 +320,8 @@
 
                 <div class="event-card-footer">
                   <span class="hint">${sum.itemsCount} ${sum.itemsCount === 1 ? 'item' : 'items'} &bull; ${sum.paidCount} paid, ${sum.partialCount} advance</span>
-                  <div class="actions-cell-wrap">
+                  <div class="actions-cell-wrap" style="flex-wrap: wrap;">
+                    <button class="btn btn-sm btn-secondary export-card-png-btn" data-id="${evt.id}" type="button">Export PNG</button>
                     <button class="btn btn-sm btn-primary open-event-btn" data-id="${evt.id}">Manage &rarr;</button>
                     <button class="link-btn link-btn-danger delete-event-btn" data-id="${evt.id}">Delete</button>
                   </div>
@@ -296,17 +344,23 @@
         notes: data.get('notes') || ''
       });
       activeEventId = newEvt.id;
-      if (window.location.hash !== `#events/${newEvt.id}`) {
-        window.location.hash = `#events/${newEvt.id}`;
-      } else {
-        rerender();
-      }
+      rerender();
     });
 
     container.querySelectorAll('.open-event-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         activeEventId = btn.dataset.id;
-        window.location.hash = `#events/${activeEventId}`;
+        rerender();
+      });
+    });
+
+    container.querySelectorAll('.export-card-png-btn').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const id = btn.dataset.id;
+        if (ET.exportEventToPNG) {
+          ET.exportEventToPNG(id);
+        }
       });
     });
 
@@ -332,11 +386,10 @@
     });
   }
 
-  function renderEventDetail(container, eventId, rerender) {
+  function renderEventDetail(container, eventId, rerender, refreshApp) {
     const event = ET.getEventById(eventId);
     if (!event) {
       activeEventId = null;
-      window.location.hash = '#events';
       rerender();
       return;
     }
@@ -350,10 +403,26 @@
 
     const dateStr = event.startDate ? `${event.startDate}${event.endDate ? ` &rarr; ${event.endDate}` : ''}` : '';
 
+    let initialMode = 'full';
+    if (editingItem) {
+      if (editingItem.settlementType) {
+        initialMode = editingItem.settlementType;
+      } else if (editingItem.paidAmount >= editingItem.quotedAmount && editingItem.quotedAmount > 0) {
+        initialMode = 'full';
+      } else if (editingItem.paidAmount > 0) {
+        initialMode = 'partial';
+      } else {
+        initialMode = 'unpaid';
+      }
+    }
+
     container.innerHTML = `
-      <div class="event-nav-bar">
+      <div class="event-nav-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
         <button id="back-to-events" class="link-btn" style="font-weight: 600;">
           &larr; Back to all programs
+        </button>
+        <button id="export-event-png-btn" class="btn btn-secondary btn-sm" type="button">
+          Export PNG Graphic Report
         </button>
       </div>
 
@@ -412,39 +481,86 @@
       <section id="item-form-panel" class="panel">
         <div class="panel-header">
           <div class="panel-title-wrap">
-            <h3 class="panel-title">${editingItem ? 'Edit Expense Item / Payment' : 'Add Cost Item & Advance Payment'}</h3>
+            <h3 class="panel-title">${editingItem ? 'Edit Cost Item / Payment' : 'Add Cost Item & Settlement'}</h3>
             ${editingItem ? '<span class="panel-badge badge-accent">Editing</span>' : ''}
           </div>
-          <span class="hint">${editingItem ? 'Update quoted vendor price or advance payment amount' : 'Log vendor quotes, hotel bookings, advance payments, and due amounts'}</span>
+          <span class="hint">${editingItem ? 'Update payment amount, quote, or settlement status' : 'Log vendor quotes, hotel bookings, advance payments, or full one-time settlements'}</span>
         </div>
 
         <form id="event-item-form" class="form-grid">
+          <div class="field" style="grid-column: 1 / -1;">
+            <span class="field-label">Payment / Settlement Mode</span>
+            <div class="settlement-mode-toggle" id="settlement-mode-toggle">
+              <button type="button" class="settlement-mode-btn ${initialMode === 'full' ? 'active' : ''}" data-mode="full">
+                Full Settlement (Paid in Full)
+              </button>
+              <button type="button" class="settlement-mode-btn ${initialMode === 'partial' ? 'active' : ''}" data-mode="partial">
+                Advance / Partial Payment
+              </button>
+              <button type="button" class="settlement-mode-btn ${initialMode === 'unpaid' ? 'active' : ''}" data-mode="unpaid">
+                Unpaid Quote
+              </button>
+            </div>
+            <input type="hidden" name="settlementType" id="item-settlement-type" value="${initialMode}" />
+          </div>
+
           <div class="field">
             <span class="field-label">Item / Service Name</span>
             <input name="name" type="text" required placeholder="e.g. Resort Booking, DJ & Sound, Caterer, Fuel" value="${editingItem ? escapeHtml(editingItem.name) : ''}" />
           </div>
+
           <div class="field">
             <span class="field-label">Category (optional)</span>
             <input name="category" type="text" placeholder="e.g. Stay, Food, Travel, Venue, Decor" value="${editingItem && editingItem.category ? escapeHtml(editingItem.category) : ''}" />
           </div>
-          <div class="field">
-            <span class="field-label">Quoted / Touted Total (₹)</span>
-            <input name="quotedAmount" type="number" min="0" step="any" required placeholder="0.00" value="${editingItem ? editingItem.quotedAmount : ''}" />
+
+          <!-- Dynamic Settlement Fields Container -->
+          <div id="dynamic-fields-container" style="grid-column: 1 / -1; width: 100%;">
+            <!-- Full Settlement Mode: 1 Amount Field -->
+            <div id="fields-full" class="form-grid" style="${initialMode === 'full' ? '' : 'display: none;'}">
+              <div class="field">
+                <span class="field-label">Total Settled Amount (₹)</span>
+                <input name="totalAmount" id="input-total-amount" type="number" min="0" step="any" ${initialMode === 'full' ? 'required' : ''} placeholder="0.00" value="${editingItem ? (editingItem.paidAmount || editingItem.quotedAmount || '') : ''}" />
+                <span class="hint">One-time payment automatically logged as 100% fully settled (zero remaining balance).</span>
+              </div>
+            </div>
+
+            <!-- Partial / Advance Mode: 2 Amount Fields -->
+            <div id="fields-partial" class="form-grid" style="${initialMode === 'partial' ? '' : 'display: none;'}">
+              <div class="field">
+                <span class="field-label">Quoted / Estimated Total (₹)</span>
+                <input name="quotedAmount" id="input-quoted-amount" type="number" min="0" step="any" ${initialMode === 'partial' ? 'required' : ''} placeholder="0.00" value="${editingItem ? editingItem.quotedAmount : ''}" />
+              </div>
+              <div class="field">
+                <span class="field-label">Advance / Amount Paid So Far (₹)</span>
+                <input name="paidAmount" id="input-paid-amount" type="number" min="0" step="any" ${initialMode === 'partial' ? 'required' : ''} placeholder="0.00" value="${editingItem ? editingItem.paidAmount : ''}" />
+              </div>
+              <div class="field">
+                <span class="field-label">Due Date for Balance (optional)</span>
+                <input name="dueDatePartial" type="date" value="${editingItem && editingItem.dueDate ? editingItem.dueDate : ''}" />
+              </div>
+            </div>
+
+            <!-- Unpaid Mode: 1 Quoted Field -->
+            <div id="fields-unpaid" class="form-grid" style="${initialMode === 'unpaid' ? '' : 'display: none;'}">
+              <div class="field">
+                <span class="field-label">Quoted / Estimated Total (₹)</span>
+                <input name="unpaidQuotedAmount" id="input-unpaid-quoted" type="number" min="0" step="any" ${initialMode === 'unpaid' ? 'required' : ''} placeholder="0.00" value="${editingItem ? editingItem.quotedAmount : ''}" />
+              </div>
+              <div class="field">
+                <span class="field-label">Due Date (optional)</span>
+                <input name="dueDateUnpaid" type="date" value="${editingItem && editingItem.dueDate ? editingItem.dueDate : ''}" />
+              </div>
+            </div>
           </div>
-          <div class="field">
-            <span class="field-label">Advance / Amount Paid So Far (₹)</span>
-            <input name="paidAmount" type="number" min="0" step="any" required placeholder="0.00" value="${editingItem ? editingItem.paidAmount : '0'}" />
-          </div>
-          <div class="field">
-            <span class="field-label">Due Date (optional)</span>
-            <input name="dueDate" type="date" value="${editingItem && editingItem.dueDate ? editingItem.dueDate : ''}" />
-          </div>
+
           <div class="field" style="grid-column: 1 / -1;">
             <span class="field-label">Notes (optional)</span>
             <textarea name="notes" rows="2" placeholder="e.g. Balance due at checkout, includes breakfast">${editingItem && editingItem.notes ? escapeHtml(editingItem.notes) : ''}</textarea>
           </div>
+
           <div class="form-actions-wrap" style="grid-column: 1 / -1; margin-top: 0.5rem; display: flex; gap: 0.75rem; align-items: center;">
-            <button type="submit" class="btn btn-primary">${editingItem ? 'Save Item Changes' : 'Add Item'}</button>
+            <button type="submit" class="btn btn-primary">${editingItem ? 'Save Item Changes' : 'Add Cost Item'}</button>
             ${editingItem ? '<button type="button" id="cancel-item-edit-btn" class="btn btn-secondary">Cancel</button>' : ''}
           </div>
         </form>
@@ -454,20 +570,20 @@
       <section class="panel">
         <div class="panel-header">
           <div class="panel-title-wrap">
-            <h3 class="panel-title">Expense & Payment Items</h3>
+            <h3 class="panel-title">Cost Items & Payment Ledger</h3>
           </div>
           <span class="panel-badge">${items.length} ${items.length === 1 ? 'item' : 'items'}</span>
         </div>
 
         <div id="event-items-list">
           ${items.length === 0 ? `
-            <div class="empty-box"><p>No expense items added yet for this program. Add quotes and advance payments above.</p></div>
+            <div class="empty-box"><p>No expense items added yet for this program. Add full settlements or quotes above.</p></div>
           ` : `
             <div class="table-wrap">
               <table class="table table-expenses">
                 <thead>
                   <tr>
-                    <th>Item & Notes</th>
+                    <th>Item & Details</th>
                     <th>Category</th>
                     <th class="text-right">Quoted</th>
                     <th class="text-right">Paid (Advance)</th>
@@ -516,6 +632,7 @@
                         </td>
                         <td class="text-right cell-action">
                           <div class="actions-cell-wrap">
+                            ${pending > 0 ? `<button class="link-btn link-btn-settle settle-item-btn" data-id="${i.id}" title="Mark full balance settled">Settle</button>` : ''}
                             <button class="link-btn link-btn-edit edit-item-btn" data-id="${i.id}">Edit</button>
                             <button class="link-btn link-btn-danger delete-item-btn" data-id="${i.id}">Delete</button>
                           </div>
@@ -533,19 +650,101 @@
     container.querySelector('#back-to-events').addEventListener('click', () => {
       activeEventId = null;
       editingEventItemId = null;
-      window.location.hash = '#events';
+      rerender();
     });
+
+    const exportPngBtn = container.querySelector('#export-event-png-btn');
+    if (exportPngBtn) {
+      exportPngBtn.addEventListener('click', () => {
+        if (ET.exportEventToPNG) {
+          ET.exportEventToPNG(eventId);
+        }
+      });
+    }
+
+    const modeToggle = container.querySelector('#settlement-mode-toggle');
+    const hiddenModeInput = container.querySelector('#item-settlement-type');
+    const fieldsFull = container.querySelector('#fields-full');
+    const fieldsPartial = container.querySelector('#fields-partial');
+    const fieldsUnpaid = container.querySelector('#fields-unpaid');
+
+    const inputTotal = container.querySelector('#input-total-amount');
+    const inputQuoted = container.querySelector('#input-quoted-amount');
+    const inputPaid = container.querySelector('#input-paid-amount');
+    const inputUnpaidQuoted = container.querySelector('#input-unpaid-quoted');
+
+    if (modeToggle) {
+      modeToggle.querySelectorAll('.settlement-mode-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const selectedMode = btn.dataset.mode;
+          modeToggle.querySelectorAll('.settlement-mode-btn').forEach((b) => b.classList.toggle('active', b === btn));
+          hiddenModeInput.value = selectedMode;
+
+          const currentVal = Number(inputTotal.value || inputQuoted.value || inputUnpaidQuoted.value) || '';
+
+          if (selectedMode === 'full') {
+            fieldsFull.style.display = 'grid';
+            fieldsPartial.style.display = 'none';
+            fieldsUnpaid.style.display = 'none';
+            if (currentVal && !inputTotal.value) inputTotal.value = currentVal;
+            inputTotal.required = true;
+            inputQuoted.required = false;
+            inputPaid.required = false;
+            inputUnpaidQuoted.required = false;
+          } else if (selectedMode === 'partial') {
+            fieldsFull.style.display = 'none';
+            fieldsPartial.style.display = 'grid';
+            fieldsUnpaid.style.display = 'none';
+            if (currentVal && !inputQuoted.value) inputQuoted.value = currentVal;
+            inputTotal.required = false;
+            inputQuoted.required = true;
+            inputPaid.required = true;
+            inputUnpaidQuoted.required = false;
+          } else if (selectedMode === 'unpaid') {
+            fieldsFull.style.display = 'none';
+            fieldsPartial.style.display = 'none';
+            fieldsUnpaid.style.display = 'grid';
+            if (currentVal && !inputUnpaidQuoted.value) inputUnpaidQuoted.value = currentVal;
+            inputTotal.required = false;
+            inputQuoted.required = false;
+            inputPaid.required = false;
+            inputUnpaidQuoted.required = true;
+          }
+        });
+      });
+    }
 
     const itemForm = container.querySelector('#event-item-form');
     itemForm.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const data = new FormData(itemForm);
+      const mode = data.get('settlementType') || 'full';
+
+      let quoted = 0;
+      let paid = 0;
+      let dueDate = null;
+
+      if (mode === 'full') {
+        const amt = Number(data.get('totalAmount')) || 0;
+        quoted = amt;
+        paid = amt;
+      } else if (mode === 'partial') {
+        quoted = Number(data.get('quotedAmount')) || 0;
+        paid = Number(data.get('paidAmount')) || 0;
+        dueDate = data.get('dueDatePartial') || null;
+      } else if (mode === 'unpaid') {
+        quoted = Number(data.get('unpaidQuotedAmount')) || 0;
+        paid = 0;
+        dueDate = data.get('dueDateUnpaid') || null;
+      }
+
       const payload = {
         name: data.get('name'),
         category: data.get('category'),
-        quotedAmount: data.get('quotedAmount'),
-        paidAmount: data.get('paidAmount'),
-        dueDate: data.get('dueDate') || null,
+        quotedAmount: quoted,
+        paidAmount: paid,
+        settlementType: mode,
+        dueDate: dueDate,
         notes: data.get('notes')
       };
 
@@ -555,7 +754,6 @@
       } else {
         ET.addEventItem(eventId, payload);
       }
-
       rerender();
     });
 
@@ -575,6 +773,14 @@
         if (formPanel) {
           formPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+      });
+    });
+
+    container.querySelectorAll('.settle-item-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const itemId = btn.dataset.id;
+        ET.settleEventItem(eventId, itemId);
+        rerender();
       });
     });
 

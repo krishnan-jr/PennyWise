@@ -3,7 +3,7 @@
 
   const ET = (window.ET = window.ET || {});
 
-  const CURRENT_DB_SCHEMA = 'V1';
+  const CURRENT_DB_SCHEMA = 'V2';
   ET.CURRENT_DB_SCHEMA = CURRENT_DB_SCHEMA;
 
   ET.KEYS = {
@@ -28,16 +28,56 @@
     localStorage.setItem(key, JSON.stringify(value));
   };
 
+  // Migration V1 -> V2: Normalize event cost items with explicit settlementType
+  function migrateV1ToV2(data) {
+    const updated = Object.assign({}, data);
+    if (Array.isArray(updated.events)) {
+      updated.events = updated.events.map((evt) => {
+        const items = Array.isArray(evt.items)
+          ? evt.items.map((item) => {
+              const quoted = Number(item.quotedAmount) || 0;
+              const paid = Number(item.paidAmount) || 0;
+              let status = item.status;
+              let settlementType = item.settlementType;
+              if (!settlementType) {
+                if (paid >= quoted && quoted > 0) {
+                  settlementType = 'full';
+                  status = 'paid';
+                } else if (paid > 0) {
+                  settlementType = 'partial';
+                  status = 'partial';
+                } else {
+                  settlementType = 'unpaid';
+                  status = 'unpaid';
+                }
+              }
+              return {
+                ...item,
+                quotedAmount: quoted,
+                paidAmount: paid,
+                status: status,
+                settlementType: settlementType
+              };
+            })
+          : [];
+        return {
+          ...evt,
+          items: items
+        };
+      });
+    }
+    return updated;
+  }
+
   // Schema initialization & migration pipeline
   ET.migrateData = function (source, fromVersion, toVersion) {
     let migrated = Object.assign({}, source);
     let currentVer = fromVersion || 'V1';
 
-    // Future version migrations can be chained sequentially:
-    // if (currentVer === 'V1' && toVersion !== 'V1') {
-    //   migrated = migrateV1ToV2(migrated);
-    //   currentVer = 'V2';
-    // }
+    if (currentVer === 'V1' && toVersion === 'V2') {
+      migrated = migrateV1ToV2(migrated);
+      currentVer = 'V2';
+    }
 
     return {
       schemaVersion: toVersion,
@@ -556,6 +596,360 @@
       const a = document.createElement('a');
       a.href = url;
       a.download = `pennywise-report-${ym}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  };
+
+  // High-Resolution Event & Program PNG Graphic Report Export
+  ET.exportEventToPNG = function (eventId) {
+    const event = ET.getEventById(eventId);
+    if (!event) return;
+
+    const sum = ET.eventSummary(event);
+    const items = event.items || [];
+    const dateStr = event.startDate ? `${event.startDate}${event.endDate ? ` → ${event.endDate}` : ''}` : 'Dates not specified';
+
+    const canvas = document.createElement('canvas');
+    const scale = 2; // 2x Retina
+    const W = 840;
+    const pad = 36;
+    const cardW = W - pad * 2;
+    const FONT = '"DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+    // Calculate dynamic height
+    const headerH = 175;
+    const bodyPadTop = 22;
+    const kpiH = 92;
+    const notesH = event.notes ? 54 : 0;
+    const tableTitleH = 34;
+    const tableHeaderH = 36;
+    const rowH = 46;
+    const rowsH = Math.max(items.length * rowH, 50);
+    const totalRowH = items.length > 0 ? 46 : 0;
+    const bodyPadBottom = 20;
+    const footerH = 46;
+
+    const bodyH = bodyPadTop + kpiH + (notesH > 0 ? notesH + 16 : 0) + 16 + tableTitleH + tableHeaderH + rowsH + totalRowH + footerH + bodyPadBottom;
+    const cardH = headerH + bodyH;
+    const totalH = cardH + pad * 2;
+
+    canvas.width = W * scale;
+    canvas.height = totalH * scale;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    function roundRect(x, y, w, h, r, fill, stroke, strokeColor, lineWidth = 1) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      if (stroke) {
+        ctx.strokeStyle = strokeColor || '#e2e8f0';
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    function drawTopRoundedRect(x, y, w, h, r, fill) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+    }
+
+    // 1. Background
+    ctx.fillStyle = '#f1f5f4';
+    ctx.fillRect(0, 0, W, totalH);
+
+    // 2. Main Outer Card
+    roundRect(pad, pad, cardW, cardH, 20, '#ffffff', true, '#e2e8f0');
+
+    // 3. Top Header Panel (Emerald)
+    drawTopRoundedRect(pad, pad, cardW, headerH, 20, '#0f3e36');
+
+    // Brand Monogram
+    roundRect(pad + 24, pad + 20, 38, 38, 9, '#164e43', true, '#2d6a4f');
+    ctx.fillStyle = '#52b788';
+    ctx.font = `bold 16px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('PW', pad + 43, pad + 39);
+
+    // Brand Title & Tagline
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold 17px ${FONT}`;
+    ctx.fillText('Pennywise', pad + 72, pad + 30);
+    ctx.fillStyle = '#52b788';
+    ctx.font = `600 9.5px ${FONT}`;
+    ctx.fillText('EVERY PENNY COUNTS', pad + 72, pad + 47);
+
+    // Right Status Badge
+    const isSettled = sum.totalPending === 0 && sum.totalQuoted > 0;
+    const badgeText = isSettled ? 'Fully Settled' : `${sum.progressPct}% Settled`;
+    const badgeBg = isSettled ? 'rgba(82, 183, 136, 0.25)' : 'rgba(255, 255, 255, 0.15)';
+    const badgeBorder = isSettled ? '#52b788' : 'rgba(255, 255, 255, 0.3)';
+    const badgeColor = isSettled ? '#a7f3d0' : '#ffffff';
+
+    roundRect(pad + cardW - 130, pad + 24, 106, 26, 13, badgeBg, true, badgeBorder);
+    ctx.fillStyle = badgeColor;
+    ctx.font = `bold 11px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, pad + cardW - 77, pad + 37);
+
+    // Event Title & Dates in Header
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold 22px ${FONT}`;
+    ctx.fillText(event.name, pad + 24, pad + 90);
+
+    ctx.fillStyle = '#a7f3d0';
+    ctx.font = `500 12.5px ${FONT}`;
+    ctx.fillText(dateStr, pad + 24, pad + 112);
+
+    // Header Progress Bar
+    const progTrackX = pad + 24;
+    const progTrackY = pad + 134;
+    const progTrackW = cardW - 48;
+    roundRect(progTrackX, progTrackY, progTrackW, 8, 4, 'rgba(255,255,255,0.2)');
+    if (sum.progressPct > 0) {
+      const progFillW = Math.max(8, (progTrackW * sum.progressPct) / 100);
+      roundRect(progTrackX, progTrackY, progFillW, 8, 4, '#52b788');
+    }
+
+    // Mini Subtext under progress
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = `500 11px ${FONT}`;
+    ctx.fillText(`Quoted Total: ${ET.formatAmount(sum.totalQuoted)}   •   Paid: ${ET.formatAmount(sum.totalPaid)}   •   Pending: ${ET.formatAmount(sum.totalPending)}`, progTrackX, pad + 158);
+
+    let curY = pad + headerH + bodyPadTop;
+
+    // 4. KPI Row (4 Cards)
+    const kpiGap = 12;
+    const kpiCount = 4;
+    const kpiW = (cardW - 48 - kpiGap * (kpiCount - 1)) / kpiCount;
+
+    const kpis = [
+      { label: 'Quoted Total', val: ET.formatAmount(sum.totalQuoted), sub: `${sum.itemsCount} cost items`, valColor: '#0f172a' },
+      { label: 'Total Paid (Advance)', val: ET.formatAmount(sum.totalPaid), sub: `${sum.paidCount} paid, ${sum.partialCount} advance`, valColor: '#0f766e' },
+      { label: 'Pending Balance', val: ET.formatAmount(sum.totalPending), sub: `${sum.unpaidCount} unpaid items`, valColor: sum.totalPending > 0 ? '#b91c1c' : '#0f172a' },
+      { label: 'Settlement Rate', val: `${sum.progressPct}%`, sub: isSettled ? 'Completed' : 'In Progress', valColor: '#0f766e' }
+    ];
+
+    kpis.forEach((k, idx) => {
+      const kx = pad + 24 + idx * (kpiW + kpiGap);
+      roundRect(kx, curY, kpiW, kpiH, 10, '#f8fafc', true, '#e2e8f0');
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#64748b';
+      ctx.font = `bold 10px ${FONT}`;
+      ctx.fillText(k.label.toUpperCase(), kx + 12, curY + 18);
+
+      ctx.fillStyle = k.valColor;
+      ctx.font = `bold 17px ${FONT}`;
+      ctx.fillText(k.val, kx + 12, curY + 46);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `500 10.5px ${FONT}`;
+      ctx.fillText(k.sub, kx + 12, curY + 72);
+    });
+
+    curY += kpiH;
+
+    // Optional Program Notes Box
+    if (event.notes) {
+      curY += 16;
+      roundRect(pad + 24, curY, cardW - 48, notesH, 8, '#f1f5f9', true, '#e2e8f0');
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#0f766e';
+      ctx.font = `bold 10.5px ${FONT}`;
+      ctx.fillText('PROGRAM NOTES:', pad + 38, curY + 10);
+
+      ctx.fillStyle = '#334155';
+      ctx.font = `12px ${FONT}`;
+      ctx.fillText(event.notes.length > 95 ? `${event.notes.slice(0, 92)}...` : event.notes, pad + 38, curY + 28);
+      curY += notesH;
+    }
+
+    curY += 16;
+
+    // 5. Itemized Table
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#0f172a';
+    ctx.font = `bold 14px ${FONT}`;
+    ctx.fillText(`Cost Items & Advance Payments (${items.length})`, pad + 24, curY + 16);
+
+    curY += tableTitleH;
+
+    const tableX = pad + 24;
+    const tableW = cardW - 48;
+    roundRect(tableX, curY, tableW, tableHeaderH, 6, '#f8fafc', true, '#e2e8f0');
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = `bold 10px ${FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText('ITEM & DETAILS', tableX + 16, curY + tableHeaderH / 2);
+    ctx.fillText('CATEGORY', tableX + 220, curY + tableHeaderH / 2);
+    ctx.fillText('DUE DATE', tableX + 320, curY + tableHeaderH / 2);
+    ctx.fillText('STATUS', tableX + 410, curY + tableHeaderH / 2);
+    ctx.textAlign = 'right';
+    ctx.fillText('QUOTED', tableX + 540, curY + tableHeaderH / 2);
+    ctx.fillText('PAID', tableX + 630, curY + tableHeaderH / 2);
+    ctx.fillText('BALANCE', tableX + tableW - 16, curY + tableHeaderH / 2);
+
+    curY += tableHeaderH;
+
+    if (items.length === 0) {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `13px ${FONT}`;
+      ctx.fillText('No expense items recorded for this program.', tableX + tableW / 2, curY + 25);
+      curY += 50;
+    } else {
+      items.forEach((item, idx) => {
+        const rowY = curY + idx * rowH;
+        if (idx % 2 === 1) {
+          ctx.fillStyle = '#fafcfb';
+          ctx.fillRect(tableX, rowY, tableW, rowH);
+        }
+
+        // Item Name & Notes
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#0f172a';
+        ctx.font = `bold 12.5px ${FONT}`;
+        const displayName = item.name.length > 24 ? `${item.name.slice(0, 22)}...` : item.name;
+        ctx.fillText(displayName, tableX + 16, rowY + (item.notes ? rowH / 2 - 7 : rowH / 2));
+
+        if (item.notes) {
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = `10.5px ${FONT}`;
+          const subNote = item.notes.length > 28 ? `${item.notes.slice(0, 26)}...` : item.notes;
+          ctx.fillText(subNote, tableX + 16, rowY + rowH / 2 + 9);
+        }
+
+        // Category
+        ctx.fillStyle = '#64748b';
+        ctx.font = `12px ${FONT}`;
+        ctx.fillText(item.category || '-', tableX + 220, rowY + rowH / 2);
+
+        // Due Date
+        ctx.fillStyle = '#64748b';
+        ctx.font = `11.5px ${FONT}`;
+        ctx.fillText(item.dueDate || '-', tableX + 320, rowY + rowH / 2);
+
+        // Status Badge
+        const isItemPaid = item.status === 'paid';
+        const isItemPartial = item.status === 'partial';
+        const itemTagBg = isItemPaid ? '#dcfce7' : isItemPartial ? '#e0f2fe' : '#f1f5f9';
+        const itemTagText = isItemPaid ? '#15803d' : isItemPartial ? '#0369a1' : '#475569';
+        const itemTagLabel = isItemPaid ? 'Fully Paid' : isItemPartial ? 'Advance' : 'Unpaid';
+
+        const pillW = 74;
+        const pillH = 22;
+        const pillX = tableX + 410;
+        const pillY = rowY + (rowH - pillH) / 2;
+        roundRect(pillX, pillY, pillW, pillH, 11, itemTagBg);
+
+        ctx.fillStyle = itemTagText;
+        ctx.font = `bold 10px ${FONT}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(itemTagLabel, pillX + pillW / 2, pillY + pillH / 2);
+
+        // Quoted
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#0f172a';
+        ctx.font = `bold 12.5px ${FONT}`;
+        ctx.fillText(ET.formatAmount(item.quotedAmount), tableX + 540, rowY + rowH / 2);
+
+        // Paid
+        ctx.fillStyle = '#0f766e';
+        ctx.fillText(ET.formatAmount(item.paidAmount), tableX + 630, rowY + rowH / 2);
+
+        // Balance
+        const pending = Math.max(0, (Number(item.quotedAmount) || 0) - (Number(item.paidAmount) || 0));
+        ctx.fillStyle = pending > 0 ? '#b91c1c' : '#94a3b8';
+        ctx.fillText(pending > 0 ? ET.formatAmount(pending) : '-', tableX + tableW - 16, rowY + rowH / 2);
+      });
+
+      curY += items.length * rowH;
+
+      // Summary Ledger Total Row
+      roundRect(tableX, curY + 6, tableW, 36, 6, '#f8fafc', true, '#e2e8f0');
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#0f172a';
+      ctx.font = `bold 12px ${FONT}`;
+      ctx.fillText('Grand Total', tableX + 16, curY + 24);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#0f172a';
+      ctx.font = `bold 13px ${FONT}`;
+      ctx.fillText(ET.formatAmount(sum.totalQuoted), tableX + 540, curY + 24);
+
+      ctx.fillStyle = '#0f766e';
+      ctx.fillText(ET.formatAmount(sum.totalPaid), tableX + 630, curY + 24);
+
+      ctx.fillStyle = sum.totalPending > 0 ? '#b91c1c' : '#0f172a';
+      ctx.fillText(sum.totalPending > 0 ? ET.formatAmount(sum.totalPending) : 'Settled', tableX + tableW - 16, curY + 24);
+
+      curY += 46;
+    }
+
+    // 6. Footer Divider & Text
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad + 24, curY + 10);
+    ctx.lineTo(pad + cardW - 24, curY + 10);
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = `500 11px ${FONT}`;
+    ctx.fillText('Generated by Pennywise • Every Penny Counts • 100% Offline & Private', W / 2, curY + 28);
+
+    // Convert to PNG & Download
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = (event.name || 'Program').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      a.download = `pennywise-program-${safeName}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
