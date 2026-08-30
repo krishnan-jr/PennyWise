@@ -71,11 +71,11 @@
     if (!event) return null;
 
     let settlementType = itemData.settlementType || 'full';
-    let quoted = Number(itemData.quotedAmount) || 0;
+    let quoted = Number(itemData.quotedAmount !== undefined ? itemData.quotedAmount : (itemData.unpaidQuotedAmount !== undefined ? itemData.unpaidQuotedAmount : itemData.totalAmount)) || 0;
     let paid = Number(itemData.paidAmount) || 0;
 
     if (settlementType === 'full') {
-      const amt = Number(itemData.totalAmount !== undefined ? itemData.totalAmount : (itemData.paidAmount || itemData.quotedAmount)) || 0;
+      const amt = Number(itemData.totalAmount !== undefined ? itemData.totalAmount : (itemData.paidAmount !== undefined ? itemData.paidAmount : itemData.quotedAmount)) || 0;
       quoted = amt;
       paid = amt;
     } else if (settlementType === 'unpaid') {
@@ -121,11 +121,11 @@
     if (idx === -1) return null;
 
     let settlementType = itemData.settlementType || 'full';
-    let quoted = Number(itemData.quotedAmount) || 0;
+    let quoted = Number(itemData.quotedAmount !== undefined ? itemData.quotedAmount : (itemData.unpaidQuotedAmount !== undefined ? itemData.unpaidQuotedAmount : itemData.totalAmount)) || 0;
     let paid = Number(itemData.paidAmount) || 0;
 
     if (settlementType === 'full') {
-      const amt = Number(itemData.totalAmount !== undefined ? itemData.totalAmount : (itemData.paidAmount || itemData.quotedAmount)) || 0;
+      const amt = Number(itemData.totalAmount !== undefined ? itemData.totalAmount : (itemData.paidAmount !== undefined ? itemData.paidAmount : itemData.quotedAmount)) || 0;
       quoted = amt;
       paid = amt;
     } else if (settlementType === 'unpaid') {
@@ -417,12 +417,12 @@
     }
 
     container.innerHTML = `
-      <div class="event-nav-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-        <button id="back-to-events" class="link-btn" style="font-weight: 600;">
-          &larr; Back to all programs
+      <div class="event-nav-bar">
+        <button id="back-to-events" class="back-btn" type="button">
+          &larr; All Programs
         </button>
-        <button id="export-event-png-btn" class="btn btn-secondary btn-sm" type="button">
-          Export PNG Graphic Report
+        <button id="export-event-png-btn" class="btn btn-secondary btn-sm export-btn" type="button">
+          Export PNG
         </button>
       </div>
 
@@ -492,10 +492,10 @@
             <span class="field-label">Payment / Settlement Mode</span>
             <div class="settlement-mode-toggle" id="settlement-mode-toggle">
               <button type="button" class="settlement-mode-btn ${initialMode === 'full' ? 'active' : ''}" data-mode="full">
-                Full Settlement (Paid in Full)
+                Paid in Full
               </button>
               <button type="button" class="settlement-mode-btn ${initialMode === 'partial' ? 'active' : ''}" data-mode="partial">
-                Advance / Partial Payment
+                Advance / Partial
               </button>
               <button type="button" class="settlement-mode-btn ${initialMode === 'unpaid' ? 'active' : ''}" data-mode="unpaid">
                 Unpaid Quote
@@ -580,12 +580,13 @@
             <div class="empty-box"><p>No expense items added yet for this program. Add full settlements or quotes above.</p></div>
           ` : `
             <div class="table-wrap">
-              <table class="table table-expenses">
+              <table class="table table-event-ledger">
                 <thead>
                   <tr>
                     <th>Item & Details</th>
                     <th>Category</th>
-                    <th class="text-right">Quoted</th>
+                    <th>Due Date</th>
+                    <th class="text-right">Quoted Total</th>
                     <th class="text-right">Paid (Advance)</th>
                     <th class="text-right">Balance Due</th>
                     <th>Status</th>
@@ -604,37 +605,73 @@
                       ? 'Fully Paid'
                       : i.status === 'partial'
                         ? `Advance (${ET.formatAmount(i.paidAmount)})`
-                        : 'Unpaid';
+                        : 'Unpaid Quote';
 
                     return `
-                      <tr class="expense-row ${editingEventItemId === i.id ? 'row-active' : ''}">
-                        <td class="cell-name">
-                          <span class="expense-name">${escapeHtml(i.name)}</span>
-                          <div class="expense-meta-mobile">
-                            <span class="tag ${statusTag}">${statusLabel}</span>
-                            ${i.category ? `<span class="expense-cat">${escapeHtml(i.category)}</span>` : ''}
-                            ${i.notes ? `<span class="expense-date">${escapeHtml(i.notes)}</span>` : ''}
-                            ${pending > 0 ? `<span class="negative-text">Due: ${ET.formatAmount(pending)}</span>` : ''}
+                      <tr class="event-ledger-row ${editingEventItemId === i.id ? 'row-active' : ''}">
+                        <!-- Mobile Structured Card Block -->
+                        <td class="mobile-only-block" style="padding: 0; border: none;">
+                          <div class="event-item-main">
+                            <!-- Top Row: Name and Quoted Amount -->
+                            <div class="event-item-top">
+                              <span class="event-item-name">${escapeHtml(i.name)}</span>
+                              <div class="event-item-amount-wrap">
+                                <span class="event-item-quoted-val">${ET.formatAmount(i.quotedAmount)}</span>
+                              </div>
+                            </div>
+
+                            <!-- Meta Row: Status Badge, Category, Due Date -->
+                            <div class="event-item-meta">
+                              <span class="tag ${statusTag}">${statusLabel}</span>
+                              ${i.category ? `<span class="tag" style="background: var(--surface-subtle); color: var(--text-muted);">${escapeHtml(i.category)}</span>` : ''}
+                              ${i.dueDate ? `<span class="expense-date">Due: ${i.dueDate}</span>` : ''}
+                            </div>
+
+                            <!-- Notes Row (if present) -->
+                            ${i.notes ? `<div class="event-item-notes">${escapeHtml(i.notes)}</div>` : ''}
+
+                            <!-- Bottom Row: Payment Breakdown & Action Buttons -->
+                            <div class="event-item-bottom">
+                              <div class="event-item-balance-text">
+                                ${i.status === 'paid'
+                                  ? '<span class="positive-text" style="font-weight: 600;">Paid in Full</span>'
+                                  : i.status === 'partial'
+                                    ? `Paid: <span class="positive-text" style="font-weight: 600;">${ET.formatAmount(i.paidAmount)}</span> &bull; Due: <strong class="negative-text">${ET.formatAmount(pending)}</strong>`
+                                    : `Full Due: <strong class="negative-text">${ET.formatAmount(pending)}</strong>`}
+                              </div>
+                              <div class="actions-cell-wrap">
+                                ${pending > 0 ? `<button class="btn-action-settle settle-item-btn" data-id="${i.id}" type="button" title="Mark full balance settled">Settle</button>` : ''}
+                                <button class="link-btn link-btn-edit edit-item-btn" data-id="${i.id}" type="button">Edit</button>
+                                <button class="link-btn link-btn-danger delete-item-btn" data-id="${i.id}" type="button">Delete</button>
+                              </div>
+                            </div>
                           </div>
                         </td>
-                        <td class="cell-cat">${escapeHtml(i.category) || '-'}</td>
-                        <td class="text-right amount-cell cell-amount">
+
+                        <!-- Desktop Table Cells -->
+                        <td class="desktop-only-cell cell-desktop">
+                          <span class="expense-name" style="font-weight: 600; font-size: 0.9rem;">${escapeHtml(i.name)}</span>
+                          ${i.notes ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">${escapeHtml(i.notes)}</div>` : ''}
+                        </td>
+                        <td class="desktop-only-cell cell-desktop">${escapeHtml(i.category) || '-'}</td>
+                        <td class="desktop-only-cell cell-desktop">${i.dueDate || '-'}</td>
+                        <td class="desktop-only-cell cell-desktop text-right amount-cell">
                           <strong>${ET.formatAmount(i.quotedAmount)}</strong>
                         </td>
-                        <td class="text-right amount-cell positive-text cell-start">
+                        <td class="desktop-only-cell cell-desktop text-right amount-cell positive-text">
                           ${ET.formatAmount(i.paidAmount)}
                         </td>
-                        <td class="text-right amount-cell ${pending > 0 ? 'negative-text' : ''} cell-end">
+                        <td class="desktop-only-cell cell-desktop text-right amount-cell ${pending > 0 ? 'negative-text' : ''}">
                           ${pending > 0 ? ET.formatAmount(pending) : '-'}
                         </td>
-                        <td class="cell-type">
+                        <td class="desktop-only-cell cell-desktop">
                           <span class="tag ${statusTag}">${statusLabel}</span>
                         </td>
-                        <td class="text-right cell-action">
+                        <td class="desktop-only-cell cell-desktop text-right cell-action">
                           <div class="actions-cell-wrap">
-                            ${pending > 0 ? `<button class="link-btn link-btn-settle settle-item-btn" data-id="${i.id}" title="Mark full balance settled">Settle</button>` : ''}
-                            <button class="link-btn link-btn-edit edit-item-btn" data-id="${i.id}">Edit</button>
-                            <button class="link-btn link-btn-danger delete-item-btn" data-id="${i.id}">Delete</button>
+                            ${pending > 0 ? `<button class="btn-action-settle settle-item-btn" data-id="${i.id}" type="button" title="Mark full balance settled">Settle</button>` : ''}
+                            <button class="link-btn link-btn-edit edit-item-btn" data-id="${i.id}" type="button">Edit</button>
+                            <button class="link-btn link-btn-danger delete-item-btn" data-id="${i.id}" type="button">Delete</button>
                           </div>
                         </td>
                       </tr>`;

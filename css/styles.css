@@ -1885,12 +1885,45 @@ textarea:focus {
   border-top: 1px solid var(--border-light);
 }
 
-/* Event Detail Header */
+/* Event Detail Navigation & Header */
 .event-nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: -0.25rem;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+  width: 100%;
+}
+
+.event-nav-bar .back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--brand-secondary);
+  padding: 0.35rem 0;
+  min-height: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.event-nav-bar .back-btn:hover {
+  color: var(--brand-primary);
+}
+
+.event-nav-bar .export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  min-height: 36px;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
 }
 
 .event-hero-panel {
@@ -1933,8 +1966,8 @@ textarea:focus {
 
 .settlement-mode-btn {
   flex: 1;
-  padding: 0.55rem 0.5rem;
-  font-size: 0.8rem;
+  padding: 0.55rem 0.35rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-muted);
   background: transparent;
@@ -1957,16 +1990,6 @@ textarea:focus {
   font-weight: 700;
 }
 
-@media (max-width: 480px) {
-  .settlement-mode-toggle {
-    flex-direction: column;
-  }
-  .settlement-mode-btn {
-    text-align: left;
-    padding: 0.6rem 0.75rem;
-  }
-}
-
 .link-btn-settle {
   color: #0f766e !important;
   font-weight: 700 !important;
@@ -1975,6 +1998,169 @@ textarea:focus {
 .link-btn-settle:hover {
   color: #115e59 !important;
   text-decoration: underline;
+}
+
+/* Dedicated Event Cost Items Ledger */
+.table-event-ledger thead {
+  display: none;
+}
+
+.table-event-ledger,
+.table-event-ledger tbody,
+.table-event-ledger tr.event-ledger-row {
+  display: block;
+  width: 100%;
+}
+
+.table-event-ledger tr.event-ledger-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.95rem 0;
+  border-bottom: 1px solid var(--border-light);
+  box-sizing: border-box;
+}
+
+.table-event-ledger tr.event-ledger-row:last-child {
+  border-bottom: none;
+}
+
+.table-event-ledger tr.event-ledger-row.row-active {
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  border: 1px solid var(--brand-secondary);
+}
+
+.event-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.event-item-name {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+  word-break: break-word;
+  flex: 1;
+}
+
+.event-item-amount-wrap {
+  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.event-item-quoted-val {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.event-item-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.event-item-notes {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.55rem;
+  margin-top: 0.15rem;
+  word-break: break-word;
+}
+
+.event-item-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.35rem;
+  margin-top: 0.15rem;
+  border-top: 1px dashed var(--border-light);
+  flex-wrap: wrap;
+}
+
+.event-item-balance-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.event-item-balance-text strong {
+  font-weight: 700;
+}
+
+.btn-action-settle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.65rem;
+  min-height: 28px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-action-settle:active,
+.btn-action-settle:hover {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+/* Desktop layout for event ledger */
+@media (min-width: 641px) {
+  .table-event-ledger thead {
+    display: table-header-group;
+  }
+  .table-event-ledger {
+    display: table;
+  }
+  .table-event-ledger tbody {
+    display: table-row-group;
+  }
+  .table-event-ledger tr.event-ledger-row {
+    display: table-row;
+    padding: 0;
+  }
+  .table-event-ledger .cell-desktop {
+    display: table-cell;
+    padding: 0.85rem 0.85rem;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+  }
+  .table-event-ledger .mobile-only-block {
+    display: none !important;
+  }
+  .table-event-ledger .desktop-only-cell {
+    display: table-cell !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .table-event-ledger .desktop-only-cell {
+    display: none !important;
+  }
+  .table-event-ledger .mobile-only-block {
+    display: block !important;
+    width: 100%;
+  }
 }
 
 /* Empty State */
