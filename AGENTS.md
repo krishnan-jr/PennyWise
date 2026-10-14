@@ -29,10 +29,11 @@
 - Expenses (`et.expenses`): `{ id, type, name, amount, category, startDate, endDate }`.
   - Types: `household` (Household & Living; recurring monthly), `emi`, `subscription`, `sip` (recurring monthly, optional end date; open-ended if none), `one_time` (One-Off), `adhoc` (Miscellaneous; single month or date range with optional `endDate`).
   - Recurring expenses count toward every month from `startDate` to `endDate` (YYYY-MM string comparison). If `endDate` is given for one-off or adhoc, it applies across that month range.
-- Fuel Tracking (`et.fuelLogs`): `{ id, date, vehicle, fuelType, amount, liters, pricePerLiter, odometer, isFullTank, station, notes, syncExpense, expenseId }`.
-  - Fuel Types: `petrol`, `diesel`, `cng`, `electric`.
+- Fuel Tracking (`et.fuelLogs`, `et.vehicles`): `{ id, date, vehicle, fuelType, amount, liters, pricePerLiter, odometer, isFullTank, station, notes, syncExpense, expenseId }`.
+  - Vehicle fleet registry (`et.vehicles`): `{ id, name, fuelType, initialOdometer, notes, createdAt }` managed in "Manage Vehicles & Fleet" modal.
   - Calculates progressive trip distance (km), fuel economy / mileage (km/L), and running cost per km (₹/km) between fill-ups.
-  - Interactive 12-month SVG trend chart with Spend (₹), Volume (L), and Mileage (km/L) toggles and floating tooltip.
+  - Interactive 12-month SVG trend chart with Spend (₹), Volume (L), and Mileage (km/L) toggles, All-Time cumulative aggregation, and floating tooltip.
+  - Fill-up ledger chronologically grouped under monthly banner headers with month spend and volume aggregates, with expandable 12-month summary data table.
   - Optional sync to general monthly expenses under category `Fuel`.
 - Events & Programs (`et.events`): `{ id, name, type, budget, startDate, endDate, status, notes, items: [{ id, name, category, quotedAmount, paidAmount, settlementType, status, dueDate, notes }] }`.
   - Item Settlement Types: `full` (single payment settled in full), `partial` (advance paid, balance pending), `unpaid` (quote logged without advance payment).

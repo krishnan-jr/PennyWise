@@ -148,15 +148,101 @@
     return ET.getFuelLogs().find((l) => l.id === id) || null;
   };
 
+  ET.getVehiclesList = function () {
+    return ET.load(ET.KEYS.vehicles, []);
+  };
+
+  ET.saveVehiclesList = function (list) {
+    ET.save(ET.KEYS.vehicles, list);
+  };
+
   ET.getFuelVehicles = function () {
-    const logs = ET.getFuelLogs();
     const set = new Set();
+    const saved = ET.getVehiclesList();
+    saved.forEach((v) => {
+      if (v && v.name && v.name.trim()) set.add(v.name.trim());
+    });
+    const logs = ET.getFuelLogs();
     logs.forEach((l) => {
       if (l.vehicle && l.vehicle.trim()) {
         set.add(l.vehicle.trim());
       }
     });
     return Array.from(set).sort();
+  };
+
+  ET.addVehicle = function (vehData) {
+    const list = ET.getVehiclesList();
+    const name = (vehData.name || '').trim();
+    if (!name) return null;
+    const existing = list.find((v) => v.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      existing.fuelType = vehData.fuelType || existing.fuelType;
+      existing.notes = vehData.notes || existing.notes;
+      ET.saveVehiclesList(list);
+      return existing;
+    }
+    const newVehicle = {
+      id: (crypto.randomUUID && crypto.randomUUID()) || `veh-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: name,
+      fuelType: vehData.fuelType || 'petrol',
+      initialOdometer: Number(vehData.initialOdometer) || 0,
+      notes: (vehData.notes || '').trim(),
+      createdAt: new Date().toISOString()
+    };
+    list.push(newVehicle);
+    ET.saveVehiclesList(list);
+    return newVehicle;
+  };
+
+  ET.renameVehicle = function (oldName, newName) {
+    const oName = (oldName || '').trim();
+    const nName = (newName || '').trim();
+    if (!oName || !nName || oName === nName) return;
+
+    // 1. Update in vehicles list
+    const vList = ET.getVehiclesList();
+    let found = false;
+    vList.forEach((v) => {
+      if (v.name.toLowerCase() === oName.toLowerCase()) {
+        v.name = nName;
+        found = true;
+      }
+    });
+    if (!found) {
+      vList.push({
+        id: (crypto.randomUUID && crypto.randomUUID()) || `veh-${Date.now()}`,
+        name: nName,
+        fuelType: 'petrol'
+      });
+    }
+    ET.saveVehiclesList(vList);
+
+    // 2. Cascade rename across all fuel logs
+    const logs = ET.getFuelLogs();
+    let modified = false;
+    logs.forEach((l) => {
+      if ((l.vehicle || '').trim().toLowerCase() === oName.toLowerCase()) {
+        l.vehicle = nName;
+        modified = true;
+      }
+    });
+    if (modified) {
+      ET.saveFuelLogs(logs);
+    }
+  };
+
+  ET.deleteVehicle = function (vehicleName) {
+    const vName = (vehicleName || '').trim().toLowerCase();
+    if (!vName) return;
+
+    // 1. Remove from vehicles list
+    const vList = ET.getVehiclesList().filter((v) => (v.name || '').trim().toLowerCase() !== vName);
+    ET.saveVehiclesList(vList);
+
+    // 2. Remove logs for this vehicle
+    const logs = ET.getFuelLogs().filter((l) => (l.vehicle || '').trim().toLowerCase() !== vName);
+    ET.saveFuelLogs(logs);
   };
 
   ET.getLatestOdometer = function (vehicleName) {
@@ -378,15 +464,22 @@
     };
   };
 
-  // Monthly breakdown for 12 months of a specific year
+  // Monthly breakdown for 12 months of a specific year or across All Time
   ET.getFuelMonthlyTrend = function (year, filterVehicle) {
     const augmented = ET.getAugmentedFuelLogs();
 
     const months = [];
     for (let m = 1; m <= 12; m++) {
-      const ym = `${year}-${String(m).padStart(2, '0')}`;
+      const ym = year !== 'all' ? `${year}-${String(m).padStart(2, '0')}` : null;
       const logsInMonth = augmented.filter((l) => {
-        if (!l.date || !l.date.startsWith(ym)) return false;
+        if (!l.date) return false;
+        if (year !== 'all') {
+          if (!l.date.startsWith(ym)) return false;
+        } else {
+          // All Time: match by calendar month index m across all years
+          const monthNum = Number(l.date.slice(5, 7));
+          if (monthNum !== m) return false;
+        }
         if (filterVehicle && filterVehicle !== 'all' && l.vehicle !== filterVehicle) return false;
         return true;
       });
@@ -399,7 +492,7 @@
       const avgPrice = liters > 0 ? Math.round((spent / liters) * 100) / 100 : 0;
 
       months.push({
-        ym,
+        ym: ym || `all-${String(m).padStart(2, '0')}`,
         monthIdx: m - 1,
         monthName: MONTH_NAMES[m - 1],
         fullMonthName: FULL_MONTH_NAMES[m - 1],
@@ -462,6 +555,61 @@
         return true;
       });
 
+      function renderGroupedFuelCards(logs) {
+        if (logs.length === 0) {
+          return `
+            <div class="empty-box">
+              <p>No fuel logs found for the selected filter.</p>
+              <button id="empty-log-btn" class="btn btn-primary btn-sm" style="margin-top: 1rem;">
+                + Record Your First Fill-up
+              </button>
+            </div>
+          `;
+        }
+
+        const groupMap = new Map();
+        const groupKeys = [];
+        logs.forEach((log) => {
+          const ym = log.date ? log.date.slice(0, 7) : 'Unknown';
+          if (!groupMap.has(ym)) {
+            groupMap.set(ym, []);
+            groupKeys.push(ym);
+          }
+          groupMap.get(ym).push(log);
+        });
+
+        return groupKeys.map((ym) => {
+          const monthLogs = groupMap.get(ym);
+          const monthSpent = monthLogs.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+          const monthLtrs = monthLogs.reduce((s, l) => s + (Number(l.liters) || 0), 0);
+
+          let monthTitle = 'Other Fill-ups';
+          if (ym !== 'Unknown') {
+            const [y, m] = ym.split('-');
+            const mIdx = Number(m) - 1;
+            monthTitle = `${FULL_MONTH_NAMES[mIdx] || m} ${y}`;
+          }
+
+          return `
+            <div class="fuel-month-ledger-group">
+              <div class="fuel-month-ledger-header">
+                <div class="fuel-month-ledger-title">
+                  <h4>${monthTitle}</h4>
+                  <span class="fuel-month-ledger-badge">${monthLogs.length} fill-up${monthLogs.length === 1 ? '' : 's'}</span>
+                </div>
+                <div class="fuel-month-ledger-summary">
+                  <span class="fuel-month-spend-pill">${ET.formatAmount(monthSpent)}</span>
+                  <span class="fuel-month-vol-pill">${monthLtrs.toFixed(1)} L</span>
+                </div>
+              </div>
+              <div class="fuel-cards-list">
+                ${monthLogs.map((log) => renderFuelCard(log)).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
       container.innerHTML = `
         <div class="fuel-view-wrapper">
           <!-- Fuel Section Header & Filter Controls -->
@@ -474,7 +622,10 @@
               <p class="fuel-header-sub">Vehicle fill-up logs, consumption analysis, and monthly mileage trends</p>
             </div>
 
-            <div class="fuel-header-actions">
+            <div class="fuel-header-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+              <button id="fuel-btn-manage-fleet" class="btn btn-secondary btn-fuel-fleet" type="button">
+                Manage Fleet
+              </button>
               <button id="fuel-btn-log" class="btn btn-primary btn-fuel-log" type="button">
                 <span>+</span> Log Fill-up
               </button>
@@ -489,6 +640,9 @@
                 <option value="all" ${state.vehicle === 'all' ? 'selected' : ''}>All Vehicles (${vehicles.length || 0})</option>
                 ${vehicles.map((v) => `<option value="${escapeHtml(v)}" ${state.vehicle === v ? 'selected' : ''}>${escapeHtml(v)}</option>`).join('')}
               </select>
+              <button id="fuel-toolbar-fleet-btn" class="btn btn-xs btn-ghost" type="button" style="text-decoration: underline; margin-left: 0.25rem; font-size: 0.8rem; color: var(--brand-secondary);" title="Manage Vehicle Fleet">
+                Manage Fleet
+              </button>
             </div>
 
             <div class="fuel-filter-group">
@@ -559,8 +713,8 @@
           <div class="fuel-chart-card">
             <div class="fuel-chart-header">
               <div class="fuel-chart-title-wrap">
-                <h3 class="fuel-chart-title">Monthly Fuel Trends (${state.year === 'all' ? new Date().getFullYear() : state.year})</h3>
-                <span class="fuel-chart-subtitle">Interactive 12-month visual breakdown</span>
+                <h3 class="fuel-chart-title">Monthly Fuel Trends (${state.year === 'all' ? 'All Time' : state.year})</h3>
+                <span class="fuel-chart-subtitle">${state.year === 'all' ? 'Cumulative monthly breakdown across all logged years' : 'Interactive 12-month visual breakdown'}</span>
               </div>
 
               <!-- Metric switcher buttons -->
@@ -583,8 +737,8 @@
             </div>
 
             <!-- Monthly Summary Table Toggle -->
-            <div class="fuel-table-toggle-bar">
-              <button id="toggle-monthly-table-btn" class="link-btn" type="button">
+            <div class="fuel-table-toggle-bar" style="display: flex; justify-content: center; padding: 0.75rem 0;">
+              <button id="toggle-monthly-table-btn" class="btn btn-sm btn-secondary" type="button">
                 ${state.showMonthlyTable ? 'Hide Monthly Table' : 'Show 12-Month Data Table'}
               </button>
             </div>
@@ -595,7 +749,7 @@
                 <table class="table-compact">
                   <thead>
                     <tr>
-                      <th>Month</th>
+                      <th>Month ${state.year === 'all' ? '(All Time)' : `(${state.year})`}</th>
                       <th class="text-right">Fill-ups</th>
                       <th class="text-right">Spend</th>
                       <th class="text-right">Volume</th>
@@ -635,18 +789,9 @@
               </div>
             </div>
 
-            ${filteredLogs.length === 0 ? `
-              <div class="empty-box">
-                <p>No fuel logs found for the selected filter.</p>
-                <button id="empty-log-btn" class="btn btn-primary btn-sm" style="margin-top: 1rem;">
-                  + Record Your First Fill-up
-                </button>
-              </div>
-            ` : `
-              <div class="fuel-cards-list">
-                ${filteredLogs.map((log) => renderFuelCard(log)).join('')}
-              </div>
-            `}
+            <div id="fuel-ledger-cards-container">
+              ${renderGroupedFuelCards(filteredLogs)}
+            </div>
           </div>
         </div>
 
@@ -753,6 +898,98 @@
                 <button type="submit" class="btn btn-primary">Save Fill-up</button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- Manage Vehicles / Fleet Modal -->
+        <div id="fuel-fleet-modal" class="modal-overlay" hidden>
+          <div class="modal-dialog fuel-modal-dialog" style="max-width: 580px;">
+            <div class="modal-header">
+              <h3 class="modal-title">Manage Vehicles & Fleet</h3>
+              <button type="button" id="fuel-fleet-modal-close" class="modal-close-btn" aria-label="Close modal">&times;</button>
+            </div>
+
+            <div class="fuel-fleet-modal-body">
+              <!-- Add Vehicle Section -->
+              <div class="fuel-fleet-add-box">
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.95rem; font-weight: 600;">+ Add New Vehicle</h4>
+                <form id="fuel-add-vehicle-form" class="form-grid" style="gap: 0.65rem;">
+                  <div class="field">
+                    <span class="field-label">Vehicle Name</span>
+                    <input type="text" id="fleet-add-name" required placeholder="e.g. Scooter (Activa), Nexon EV" />
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Default Fuel Type</span>
+                    <select id="fleet-add-fuel-type">
+                      <option value="petrol">Petrol</option>
+                      <option value="diesel">Diesel</option>
+                      <option value="cng">CNG</option>
+                      <option value="electric">Electric (EV)</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Initial Baseline Odometer (km, optional)</span>
+                    <input type="number" id="fleet-add-odo" min="0" placeholder="e.g. 12500" />
+                  </div>
+                  <div class="field" style="justify-content: flex-end; padding-top: 1.25rem;">
+                    <button type="submit" class="btn btn-primary btn-sm" style="height: 44px; width: 100%;">
+                      Save Vehicle
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Existing Vehicles List -->
+              <div class="fuel-fleet-list-section">
+                <div class="fuel-fleet-list-header">
+                  <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600;">Your Fleet (${vehicles.length})</h4>
+                </div>
+                <div id="fuel-fleet-cards-wrap" class="fuel-fleet-cards-wrap">
+                  ${vehicles.length === 0 ? `
+                    <div class="empty-box" style="padding: 1.25rem;">
+                      <p>No vehicles added yet. Use the form above to add your first vehicle.</p>
+                    </div>
+                  ` : vehicles.map((vName) => {
+                    const vStats = ET.getFuelStats(vName, 'all');
+                    const latestOdo = ET.getLatestOdometer(vName);
+                    return `
+                      <div class="fuel-fleet-card" data-vehicle="${escapeHtml(vName)}">
+                        <div class="fuel-fleet-card-header">
+                          <span class="fuel-fleet-card-name">${escapeHtml(vName)}</span>
+                          <span class="fuel-month-ledger-badge">${vStats.logCount} fill-up${vStats.logCount === 1 ? '' : 's'}</span>
+                        </div>
+                        <div class="fuel-fleet-card-stats">
+                          <span class="fuel-fleet-stat-badge">
+                            <strong>Spend:</strong> ${ET.formatAmount(vStats.totalSpent)}
+                          </span>
+                          <span class="fuel-fleet-stat-badge">
+                            <strong>Volume:</strong> ${formatNum(vStats.totalLiters, 1)} L
+                          </span>
+                          ${latestOdo ? `
+                            <span class="fuel-fleet-stat-badge">
+                              <strong>Odometer:</strong> ${formatNum(latestOdo, 0)} km
+                            </span>
+                          ` : ''}
+                          ${vStats.avgMileage ? `
+                            <span class="fuel-fleet-stat-badge">
+                              <strong>Mileage:</strong> ${vStats.avgMileage} km/L
+                            </span>
+                          ` : ''}
+                        </div>
+                        <div class="fuel-fleet-card-actions">
+                          <button type="button" class="btn btn-xs btn-secondary fleet-rename-btn" data-vehicle="${escapeHtml(vName)}">
+                            Rename
+                          </button>
+                          <button type="button" class="btn btn-xs btn-ghost btn-danger-text fleet-delete-btn" data-vehicle="${escapeHtml(vName)}">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -965,6 +1202,40 @@
     }
 
     // Attach DOM handlers
+    function attachCardActionListeners(parent = container) {
+      if (!parent) return;
+      parent.querySelectorAll('.fuel-action-edit').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const log = ET.getFuelLogById(btn.dataset.id);
+          if (log) openFuelModal(log);
+        });
+      });
+
+      parent.querySelectorAll('.fuel-action-delete').forEach((btn) => {
+        btn.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          const log = ET.getFuelLogById(btn.dataset.id);
+          if (!log) return;
+
+          const confirmed = await ET.showConfirm({
+            title: 'Delete Fuel Fill-up',
+            message: `Delete this fill-up for ${log.vehicle} on ${log.date} (${ET.formatAmount(log.amount)})?`,
+            confirmText: 'Delete Fill-up',
+            cancelText: 'Keep',
+            isDestructive: true
+          });
+
+          if (confirmed) {
+            ET.deleteFuelLog(log.id);
+            rerender();
+            if (refreshApp) refreshApp();
+          }
+        });
+      });
+    }
+
+    // Attach DOM handlers
     function attachFuelEvents() {
       // Vehicle Filter
       const vehicleFilter = container.querySelector('#fuel-vehicle-filter');
@@ -1008,7 +1279,6 @@
       if (searchInput) {
         searchInput.addEventListener('input', () => {
           state.searchQuery = searchInput.value;
-          // Debounce or immediate re-render cards
           rerenderCardsOnly();
         });
       }
@@ -1030,46 +1300,21 @@
       if (emptyLogBtn) emptyLogBtn.addEventListener('click', () => openFuelModal());
 
       // Card Edit & Delete handlers
-      container.querySelectorAll('.fuel-action-edit').forEach((btn) => {
-        btn.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          const log = ET.getFuelLogById(btn.dataset.id);
-          if (log) openFuelModal(log);
-        });
-      });
-
-      container.querySelectorAll('.fuel-action-delete').forEach((btn) => {
-        btn.addEventListener('click', async (ev) => {
-          ev.stopPropagation();
-          const log = ET.getFuelLogById(btn.dataset.id);
-          if (!log) return;
-
-          const confirmed = await ET.showConfirm({
-            title: 'Delete Fuel Fill-up',
-            message: `Delete this fill-up for ${log.vehicle} on ${log.date} (${ET.formatAmount(log.amount)})?`,
-            confirmText: 'Delete Fill-up',
-            cancelText: 'Keep',
-            isDestructive: true
-          });
-
-          if (confirmed) {
-            ET.deleteFuelLog(log.id);
-            rerender();
-            if (refreshApp) refreshApp();
-          }
-        });
-      });
+      attachCardActionListeners(container);
 
       // Chart interaction (Hover / Scrubbing)
       attachChartTooltip();
 
       // Modal Events
       setupFuelModal();
+
+      // Fleet Modal Events
+      setupFuelFleetModal();
     }
 
     function rerenderCardsOnly() {
-      const cardsList = container.querySelector('.fuel-cards-list');
-      if (!cardsList) {
+      const cardsContainer = container.querySelector('#fuel-ledger-cards-container');
+      if (!cardsContainer) {
         rerender();
         return;
       }
@@ -1087,35 +1332,8 @@
         return true;
       });
 
-      cardsList.innerHTML = filtered.map((log) => renderFuelCard(log)).join('');
-
-      cardsList.querySelectorAll('.fuel-action-edit').forEach((btn) => {
-        btn.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          const log = ET.getFuelLogById(btn.dataset.id);
-          if (log) openFuelModal(log);
-        });
-      });
-
-      cardsList.querySelectorAll('.fuel-action-delete').forEach((btn) => {
-        btn.addEventListener('click', async (ev) => {
-          ev.stopPropagation();
-          const log = ET.getFuelLogById(btn.dataset.id);
-          if (!log) return;
-          const confirmed = await ET.showConfirm({
-            title: 'Delete Fuel Fill-up',
-            message: `Delete this fill-up for ${log.vehicle} on ${log.date} (${ET.formatAmount(log.amount)})?`,
-            confirmText: 'Delete Fill-up',
-            cancelText: 'Keep',
-            isDestructive: true
-          });
-          if (confirmed) {
-            ET.deleteFuelLog(log.id);
-            rerender();
-            if (refreshApp) refreshApp();
-          }
-        });
-      });
+      cardsContainer.innerHTML = renderGroupedFuelCards(filtered);
+      attachCardActionListeners(cardsContainer);
     }
 
     function attachChartTooltip() {
@@ -1129,7 +1347,7 @@
 
       if (!plotArea || !tooltip) return;
 
-      const monthlyData = ET.getFuelMonthlyTrend(state.year === 'all' ? new Date().getFullYear() : state.year, state.vehicle);
+      const monthlyData = ET.getFuelMonthlyTrend(state.year, state.vehicle);
 
       function updateScrub(e) {
         const rect = plotArea.getBoundingClientRect();
@@ -1151,7 +1369,9 @@
         else if (state.chartMetric === 'liters') mainText = `${formatNum(d.liters, 1)} L`;
         else if (state.chartMetric === 'mileage') mainText = d.efficiency > 0 ? `${d.efficiency} km/L` : 'No data';
 
-        tooltipMonth.textContent = `${d.fullMonthName} ${state.year === 'all' ? new Date().getFullYear() : state.year}`;
+        tooltipMonth.textContent = state.year === 'all'
+          ? `${d.fullMonthName} (All Time)`
+          : `${d.fullMonthName} ${state.year}`;
         tooltipVal.textContent = mainText;
 
         let extraText = `${d.logCount} logs`;
@@ -1176,6 +1396,113 @@
         focusLine.style.display = 'none';
         focusDot.style.display = 'none';
         tooltip.style.display = 'none';
+      });
+    }
+
+    function setupFuelFleetModal() {
+      const fleetModal = container.querySelector('#fuel-fleet-modal');
+      const openBtn1 = container.querySelector('#fuel-btn-manage-fleet');
+      const openBtn2 = container.querySelector('#fuel-toolbar-fleet-btn');
+      const closeBtn = container.querySelector('#fuel-fleet-modal-close');
+      const addForm = container.querySelector('#fuel-add-vehicle-form');
+
+      if (!fleetModal) return;
+
+      function openFleetModal() {
+        fleetModal.hidden = false;
+      }
+
+      function closeFleetModal() {
+        fleetModal.hidden = true;
+      }
+
+      if (openBtn1) openBtn1.addEventListener('click', openFleetModal);
+      if (openBtn2) openBtn2.addEventListener('click', openFleetModal);
+      if (closeBtn) closeBtn.addEventListener('click', closeFleetModal);
+      fleetModal.addEventListener('click', (ev) => {
+        if (ev.target === fleetModal) closeFleetModal();
+      });
+
+      if (addForm) {
+        addForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const nameInput = addForm.querySelector('#fleet-add-name');
+          const fuelSelect = addForm.querySelector('#fleet-add-fuel-type');
+          const odoInput = addForm.querySelector('#fleet-add-odo');
+          const name = nameInput.value.trim();
+          if (!name) return;
+
+          const fuelType = fuelSelect ? fuelSelect.value : 'petrol';
+          const initialOdo = parseFloat(odoInput.value) || 0;
+
+          ET.addVehicle({ name, fuelType, initialOdometer: initialOdo });
+
+          // If baseline odometer entered and no logs exist, create initial baseline log
+          if (initialOdo > 0) {
+            const existingLogs = ET.getFuelLogs().filter((l) => l.vehicle.toLowerCase() === name.toLowerCase());
+            if (existingLogs.length === 0) {
+              ET.addFuelLog({
+                date: new Date().toISOString().slice(0, 10),
+                vehicle: name,
+                fuelType: fuelType,
+                amount: 0,
+                liters: 0,
+                pricePerLiter: 0,
+                odometer: initialOdo,
+                isFullTank: true,
+                notes: 'Initial baseline odometer reading',
+                syncExpense: false
+              });
+            }
+          }
+
+          addForm.reset();
+          closeFleetModal();
+          rerender();
+          if (refreshApp) refreshApp();
+        });
+      }
+
+      // Rename vehicle buttons
+      fleetModal.querySelectorAll('.fleet-rename-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const vName = btn.dataset.vehicle;
+          const newName = window.prompt(`Rename vehicle "${vName}" to:`, vName);
+          if (newName && newName.trim() && newName.trim() !== vName) {
+            ET.renameVehicle(vName, newName.trim());
+            if (state.vehicle === vName) state.vehicle = newName.trim();
+            closeFleetModal();
+            rerender();
+            if (refreshApp) refreshApp();
+          }
+        });
+      });
+
+      // Delete vehicle buttons
+      fleetModal.querySelectorAll('.fleet-delete-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const vName = btn.dataset.vehicle;
+          const vStats = ET.getFuelStats(vName, 'all');
+          const msg = vStats.logCount > 0
+            ? `Delete vehicle "${vName}" and all of its ${vStats.logCount} recorded fill-up logs?`
+            : `Delete vehicle "${vName}" from your fleet?`;
+
+          const confirmed = await ET.showConfirm({
+            title: 'Delete Vehicle',
+            message: msg,
+            confirmText: 'Delete Vehicle',
+            cancelText: 'Keep',
+            isDestructive: true
+          });
+
+          if (confirmed) {
+            ET.deleteVehicle(vName);
+            if (state.vehicle === vName) state.vehicle = 'all';
+            closeFleetModal();
+            rerender();
+            if (refreshApp) refreshApp();
+          }
+        });
       });
     }
 

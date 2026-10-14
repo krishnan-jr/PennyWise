@@ -13,7 +13,8 @@
     incomeOverrides: 'et.incomeOverrides',
     events: 'et.events',
     excludedExpenses: 'et.excludedExpenses',
-    fuelLogs: 'et.fuelLogs'
+    fuelLogs: 'et.fuelLogs',
+    vehicles: 'et.vehicles'
   };
 
   ET.load = function (key, fallback) {
@@ -141,7 +142,8 @@
         incomeOverrides: ET.load(ET.KEYS.incomeOverrides, {}),
         events: ET.load(ET.KEYS.events, []),
         excludedExpenses: ET.load(ET.KEYS.excludedExpenses, {}),
-        fuelLogs: ET.load(ET.KEYS.fuelLogs, [])
+        fuelLogs: ET.load(ET.KEYS.fuelLogs, []),
+        vehicles: ET.load(ET.KEYS.vehicles, [])
       }
     };
     return JSON.stringify(payload, null, 2);
@@ -164,7 +166,7 @@
     // Support both wrapped { schemaVersion, data: { ... } } and direct { settings, expenses, ... }
     const rawSource = parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
 
-    if (!rawSource.expenses && !rawSource.settings && !rawSource.incomeOverrides && !rawSource.events && !rawSource.excludedExpenses && !rawSource.fuelLogs) {
+    if (!rawSource.expenses && !rawSource.settings && !rawSource.incomeOverrides && !rawSource.events && !rawSource.excludedExpenses && !rawSource.fuelLogs && !rawSource.vehicles) {
       throw new Error('Backup file does not contain Pennywise data.');
     }
 
@@ -178,6 +180,7 @@
     const events = Array.isArray(source.events) ? source.events : [];
     const excludedExpenses = source.excludedExpenses && typeof source.excludedExpenses === 'object' ? source.excludedExpenses : {};
     const fuelLogs = Array.isArray(source.fuelLogs) ? source.fuelLogs : [];
+    const vehicles = Array.isArray(source.vehicles) ? source.vehicles : [];
 
     ET.save(ET.KEYS.expenses, expenses);
     ET.save(ET.KEYS.settings, settings);
@@ -185,6 +188,7 @@
     ET.save(ET.KEYS.events, events);
     ET.save(ET.KEYS.excludedExpenses, excludedExpenses);
     ET.save(ET.KEYS.fuelLogs, fuelLogs);
+    ET.save(ET.KEYS.vehicles, vehicles);
     localStorage.setItem(ET.KEYS.schemaVersion, CURRENT_DB_SCHEMA);
 
     return {
@@ -194,6 +198,7 @@
       overridesCount: Object.keys(overrides).length,
       eventsCount: events.length,
       fuelLogsCount: fuelLogs.length,
+      vehiclesCount: vehicles.length,
       currency: settings.currency || 'INR'
     };
   };
