@@ -8,18 +8,18 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Pennywise" />
   <meta name="application-name" content="Pennywise" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=1.0.3" />
-  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=1.0.3" />
-  <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png?v=1.0.3" />
-  <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png?v=1.0.3" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=1.0.3" />
-  <link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=1.0.3" />
-  <link rel="manifest" href="manifest.json?v=1.0.3" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=1.0.4" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=1.0.4" />
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png?v=1.0.4" />
+  <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png?v=1.0.4" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=1.0.4" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=1.0.4" />
+  <link rel="manifest" href="manifest.json?v=1.0.4" />
   <title>Pennywise • Every Penny Counts</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=1.0.3" />
+  <link rel="stylesheet" href="css/styles.css?v=1.0.4" />
 </head>
 <body>
   <header class="topbar">
@@ -36,6 +36,7 @@
       <nav class="nav" aria-label="Main Navigation">
         <a href="#dashboard" class="nav-btn active" data-view="dashboard">Dashboard</a>
         <a href="#expenses" class="nav-btn" data-view="expenses">Expenses</a>
+        <a href="#fuel" class="nav-btn" data-view="fuel">Fuel</a>
         <a href="#events" class="nav-btn" data-view="events">Events</a>
         <a href="#settings" class="nav-btn" data-view="settings">Settings</a>
       </nav>
@@ -69,6 +70,9 @@
         <a href="#expenses" class="drawer-nav-item" data-view="expenses">
           <span class="drawer-nav-label">Expenses</span>
         </a>
+        <a href="#fuel" class="drawer-nav-item" data-view="fuel">
+          <span class="drawer-nav-label">Fuel Tracker</span>
+        </a>
         <a href="#events" class="drawer-nav-item" data-view="events">
           <span class="drawer-nav-label">Events & Programs</span>
         </a>
@@ -88,6 +92,7 @@
   <main>
     <div id="view-dashboard" class="view-content"></div>
     <div id="view-expenses" class="view-content" hidden></div>
+    <div id="view-fuel" class="view-content" hidden></div>
     <div id="view-events" class="view-content" hidden></div>
     <div id="view-settings" class="view-content" hidden></div>
   </main>
@@ -187,12 +192,13 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=1.0.3"></script>
-  <script src="js/settings.js?v=1.0.3"></script>
-  <script src="js/income.js?v=1.0.3"></script>
-  <script src="js/expenses.js?v=1.0.3"></script>
-  <script src="js/events.js?v=1.0.3"></script>
-  <script src="js/dashboard.js?v=1.0.3"></script>
-  <script src="js/app.js?v=1.0.3"></script>
+  <script src="js/storage.js?v=1.0.4"></script>
+  <script src="js/settings.js?v=1.0.4"></script>
+  <script src="js/income.js?v=1.0.4"></script>
+  <script src="js/expenses.js?v=1.0.4"></script>
+  <script src="js/fuel.js?v=1.0.4"></script>
+  <script src="js/events.js?v=1.0.4"></script>
+  <script src="js/dashboard.js?v=1.0.4"></script>
+  <script src="js/app.js?v=1.0.4"></script>
 </body>
 </html>

@@ -1,20 +1,21 @@
-const CACHE_NAME = 'pennywise-pwa-v5';
+const CACHE_NAME = 'pennywise-pwa-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './manifest.json?v=1.0.3',
-  './css/styles.css?v=1.0.3',
-  './js/storage.js?v=1.0.3',
-  './js/settings.js?v=1.0.3',
-  './js/income.js?v=1.0.3',
-  './js/expenses.js?v=1.0.3',
-  './js/events.js?v=1.0.3',
-  './js/dashboard.js?v=1.0.3',
-  './js/app.js?v=1.0.3',
-  './icons/icon.svg?v=1.0.3',
-  './icons/icon-192.png?v=1.0.3',
-  './icons/icon-512.png?v=1.0.3',
-  './icons/apple-touch-icon.png?v=1.0.3'
+  './manifest.json?v=1.0.4',
+  './css/styles.css?v=1.0.4',
+  './js/storage.js?v=1.0.4',
+  './js/settings.js?v=1.0.4',
+  './js/income.js?v=1.0.4',
+  './js/expenses.js?v=1.0.4',
+  './js/fuel.js?v=1.0.4',
+  './js/events.js?v=1.0.4',
+  './js/dashboard.js?v=1.0.4',
+  './js/app.js?v=1.0.4',
+  './icons/icon.svg?v=1.0.4',
+  './icons/icon-192.png?v=1.0.4',
+  './icons/icon-512.png?v=1.0.4',
+  './icons/apple-touch-icon.png?v=1.0.4'
 ];
 
 self.addEventListener('install', (event) => {

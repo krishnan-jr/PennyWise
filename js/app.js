@@ -76,6 +76,7 @@
   const views = {
     dashboard: document.getElementById('view-dashboard'),
     expenses: document.getElementById('view-expenses'),
+    fuel: document.getElementById('view-fuel'),
     events: document.getElementById('view-events'),
     settings: document.getElementById('view-settings')
   };
@@ -105,7 +106,9 @@
 
     // Toggle active view panel
     Object.keys(views).forEach((key) => {
-      views[key].hidden = key !== route.view;
+      if (views[key]) {
+        views[key].hidden = key !== route.view;
+      }
     });
 
     // Update active states on nav buttons
@@ -113,15 +116,16 @@
       link.classList.toggle('active', link.dataset.view === route.view);
     });
 
-    // Toggle Quick Add FAB (hidden on Expenses & Settings to avoid blocking form inputs)
+    // Toggle Quick Add FAB (hidden on Expenses, Fuel & Settings to avoid blocking inputs)
     const fabEl = document.getElementById('quick-add-fab');
     if (fabEl) {
-      fabEl.hidden = route.view === 'expenses' || route.view === 'settings';
+      fabEl.hidden = route.view === 'expenses' || route.view === 'settings' || route.view === 'fuel';
     }
 
     // Render active view contents
     if (route.view === 'dashboard') ET.renderDashboard(views.dashboard, state, refreshActiveView);
     if (route.view === 'expenses') ET.renderExpenseManager(views.expenses, refreshActiveView);
+    if (route.view === 'fuel' && ET.renderFuelView) ET.renderFuelView(views.fuel, refreshActiveView);
     if (route.view === 'events') ET.renderEvents(views.events, refreshActiveView);
     if (route.view === 'settings') ET.renderSettingsPanel(views.settings, refreshActiveView);
   }
@@ -132,6 +136,8 @@
       ET.renderDashboard(views.dashboard, state, refreshActiveView);
     } else if (route.view === 'expenses') {
       ET.renderExpenseManager(views.expenses, refreshActiveView);
+    } else if (route.view === 'fuel' && ET.renderFuelView) {
+      ET.renderFuelView(views.fuel, refreshActiveView);
     } else if (route.view === 'events') {
       ET.renderEvents(views.events, refreshActiveView);
     } else if (route.view === 'settings') {

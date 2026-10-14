@@ -3,7 +3,7 @@
 
   const ET = (window.ET = window.ET || {});
 
-  const CURRENT_DB_SCHEMA = 'V2';
+  const CURRENT_DB_SCHEMA = 'V3';
   ET.CURRENT_DB_SCHEMA = CURRENT_DB_SCHEMA;
 
   ET.KEYS = {
@@ -12,7 +12,8 @@
     expenses: 'et.expenses',
     incomeOverrides: 'et.incomeOverrides',
     events: 'et.events',
-    excludedExpenses: 'et.excludedExpenses'
+    excludedExpenses: 'et.excludedExpenses',
+    fuelLogs: 'et.fuelLogs'
   };
 
   ET.load = function (key, fallback) {
@@ -69,18 +70,31 @@
     return updated;
   }
 
+  // Migration V2 -> V3: Add fuel expense tracking logs
+  function migrateV2ToV3(data) {
+    const updated = Object.assign({}, data);
+    if (!Array.isArray(updated.fuelLogs)) {
+      updated.fuelLogs = [];
+    }
+    return updated;
+  }
+
   // Schema initialization & migration pipeline
   ET.migrateData = function (source, fromVersion, toVersion) {
     let migrated = Object.assign({}, source);
     let currentVer = fromVersion || 'V1';
 
-    if (currentVer === 'V1' && toVersion === 'V2') {
+    if (currentVer === 'V1') {
       migrated = migrateV1ToV2(migrated);
       currentVer = 'V2';
     }
+    if (currentVer === 'V2') {
+      migrated = migrateV2ToV3(migrated);
+      currentVer = 'V3';
+    }
 
     return {
-      schemaVersion: toVersion,
+      schemaVersion: toVersion || CURRENT_DB_SCHEMA,
       data: migrated
     };
   };
@@ -97,7 +111,8 @@
           expenses: ET.load(ET.KEYS.expenses, []),
           incomeOverrides: ET.load(ET.KEYS.incomeOverrides, {}),
           events: ET.load(ET.KEYS.events, []),
-          excludedExpenses: ET.load(ET.KEYS.excludedExpenses, {})
+          excludedExpenses: ET.load(ET.KEYS.excludedExpenses, {}),
+          fuelLogs: ET.load(ET.KEYS.fuelLogs, [])
         };
         const result = ET.migrateData(currentData, storedVersion, CURRENT_DB_SCHEMA);
         if (result && result.data) {
@@ -106,6 +121,7 @@
           if (result.data.incomeOverrides) ET.save(ET.KEYS.incomeOverrides, result.data.incomeOverrides);
           if (result.data.events) ET.save(ET.KEYS.events, result.data.events);
           if (result.data.excludedExpenses) ET.save(ET.KEYS.excludedExpenses, result.data.excludedExpenses);
+          if (result.data.fuelLogs) ET.save(ET.KEYS.fuelLogs, result.data.fuelLogs);
         }
         localStorage.setItem(ET.KEYS.schemaVersion, CURRENT_DB_SCHEMA);
       }
@@ -124,7 +140,8 @@
         expenses: ET.load(ET.KEYS.expenses, []),
         incomeOverrides: ET.load(ET.KEYS.incomeOverrides, {}),
         events: ET.load(ET.KEYS.events, []),
-        excludedExpenses: ET.load(ET.KEYS.excludedExpenses, {})
+        excludedExpenses: ET.load(ET.KEYS.excludedExpenses, {}),
+        fuelLogs: ET.load(ET.KEYS.fuelLogs, [])
       }
     };
     return JSON.stringify(payload, null, 2);
@@ -147,7 +164,7 @@
     // Support both wrapped { schemaVersion, data: { ... } } and direct { settings, expenses, ... }
     const rawSource = parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
 
-    if (!rawSource.expenses && !rawSource.settings && !rawSource.incomeOverrides && !rawSource.events && !rawSource.excludedExpenses) {
+    if (!rawSource.expenses && !rawSource.settings && !rawSource.incomeOverrides && !rawSource.events && !rawSource.excludedExpenses && !rawSource.fuelLogs) {
       throw new Error('Backup file does not contain Pennywise data.');
     }
 
@@ -160,12 +177,14 @@
     const overrides = source.incomeOverrides && typeof source.incomeOverrides === 'object' ? source.incomeOverrides : {};
     const events = Array.isArray(source.events) ? source.events : [];
     const excludedExpenses = source.excludedExpenses && typeof source.excludedExpenses === 'object' ? source.excludedExpenses : {};
+    const fuelLogs = Array.isArray(source.fuelLogs) ? source.fuelLogs : [];
 
     ET.save(ET.KEYS.expenses, expenses);
     ET.save(ET.KEYS.settings, settings);
     ET.save(ET.KEYS.incomeOverrides, overrides);
     ET.save(ET.KEYS.events, events);
     ET.save(ET.KEYS.excludedExpenses, excludedExpenses);
+    ET.save(ET.KEYS.fuelLogs, fuelLogs);
     localStorage.setItem(ET.KEYS.schemaVersion, CURRENT_DB_SCHEMA);
 
     return {
@@ -174,6 +193,7 @@
       expensesCount: expenses.length,
       overridesCount: Object.keys(overrides).length,
       eventsCount: events.length,
+      fuelLogsCount: fuelLogs.length,
       currency: settings.currency || 'INR'
     };
   };
