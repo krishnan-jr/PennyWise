@@ -666,12 +666,24 @@
                 <input type="date" id="fuel-form-date" name="date" required />
               </div>
 
-              <div class="field">
+              <div class="field" id="fuel-vehicle-field-group">
                 <span class="field-label">Vehicle</span>
-                <input type="text" id="fuel-form-vehicle" name="vehicle" placeholder="e.g. Car (Swift), Bike" list="fuel-vehicle-list" required />
-                <datalist id="fuel-vehicle-list">
-                  ${vehicles.map((v) => `<option value="${escapeHtml(v)}">`).join('')}
-                </datalist>
+                <div id="fuel-vehicle-select-wrap" ${vehicles.length === 0 ? 'style="display: none;"' : ''}>
+                  <select id="fuel-form-vehicle-select">
+                    ${vehicles.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')}
+                    <option value="__new__">+ Add New Vehicle...</option>
+                  </select>
+                </div>
+                <div id="fuel-new-vehicle-wrap" ${vehicles.length > 0 ? 'style="display: none; margin-top: 0.4rem;"' : ''}>
+                  <input type="text" id="fuel-form-vehicle-custom" placeholder="Enter vehicle name (e.g. Scooter)" ${vehicles.length === 0 ? 'required' : ''} />
+                  ${vehicles.length > 0 ? `
+                    <div style="display: flex; justify-content: flex-end; margin-top: 0.25rem;">
+                      <button type="button" id="fuel-vehicle-custom-cancel" class="btn btn-ghost btn-xs" style="padding: 0; font-size: 0.75rem; color: var(--text-muted); text-decoration: underline;">
+                        Cancel (choose existing)
+                      </button>
+                    </div>
+                  ` : ''}
+                </div>
               </div>
 
               <!-- Fuel Type Selector -->
@@ -1177,7 +1189,11 @@
       const amountInput = container.querySelector('#fuel-form-amount');
       const litersInput = container.querySelector('#fuel-form-liters');
       const priceInput = container.querySelector('#fuel-form-price');
-      const vehicleInput = container.querySelector('#fuel-form-vehicle');
+      const vehicleSelectWrap = container.querySelector('#fuel-vehicle-select-wrap');
+      const vehicleSelect = container.querySelector('#fuel-form-vehicle-select');
+      const vehicleNewWrap = container.querySelector('#fuel-new-vehicle-wrap');
+      const vehicleCustom = container.querySelector('#fuel-form-vehicle-custom');
+      const vehicleCustomCancel = container.querySelector('#fuel-vehicle-custom-cancel');
       const lastOdoHint = container.querySelector('#fuel-form-last-odo');
 
       if (!modal || !form) return;
@@ -1188,9 +1204,20 @@
         if (ev.target === modal) closeModal();
       });
 
+      function getChosenVehicle() {
+        const vehicles = ET.getFuelVehicles();
+        if (vehicles.length > 0 && vehicleSelect && vehicleSelect.value !== '__new__') {
+          return vehicleSelect.value.trim();
+        }
+        if (vehicleCustom) {
+          return vehicleCustom.value.trim();
+        }
+        return '';
+      }
+
       // Update last odometer reading hint on vehicle change
       function updateOdoHint() {
-        const v = vehicleInput.value.trim();
+        const v = getChosenVehicle();
         const lastOdo = ET.getLatestOdometer(v);
         if (lastOdo) {
           lastOdoHint.textContent = `Previous recorded: ${formatNum(lastOdo, 0)} km`;
@@ -1199,8 +1226,37 @@
         }
       }
 
-      vehicleInput.addEventListener('input', updateOdoHint);
-      vehicleInput.addEventListener('change', updateOdoHint);
+      if (vehicleSelect) {
+        vehicleSelect.addEventListener('change', () => {
+          if (vehicleSelect.value === '__new__') {
+            vehicleNewWrap.style.display = '';
+            vehicleCustom.required = true;
+            vehicleCustom.focus();
+          } else {
+            vehicleNewWrap.style.display = 'none';
+            vehicleCustom.required = false;
+          }
+          updateOdoHint();
+        });
+      }
+
+      if (vehicleCustom) {
+        vehicleCustom.addEventListener('input', updateOdoHint);
+        vehicleCustom.addEventListener('change', updateOdoHint);
+      }
+
+      if (vehicleCustomCancel) {
+        vehicleCustomCancel.addEventListener('click', () => {
+          const currentVehicles = ET.getFuelVehicles();
+          if (currentVehicles.length > 0 && vehicleSelect) {
+            vehicleSelect.value = currentVehicles[0];
+            vehicleNewWrap.style.display = 'none';
+            vehicleCustom.value = '';
+            vehicleCustom.required = false;
+            updateOdoHint();
+          }
+        });
+      }
 
       // Intelligent 2-way calculation among Amount, Litres, Price/L
       let activeCalcTarget = null;
@@ -1255,9 +1311,19 @@
         const data = new FormData(form);
         const id = data.get('id');
 
+        let chosenVehicle = getChosenVehicle();
+        if (!chosenVehicle) {
+          chosenVehicle = 'Car';
+        }
+        const currentVehicles = ET.getFuelVehicles();
+        const existingMatch = currentVehicles.find((v) => v.toLowerCase() === chosenVehicle.toLowerCase());
+        if (existingMatch) {
+          chosenVehicle = existingMatch;
+        }
+
         const payload = {
           date: data.get('date'),
-          vehicle: data.get('vehicle'),
+          vehicle: chosenVehicle,
           fuelType: data.get('fuelType') || 'petrol',
           amount: parseFloat(data.get('amount')) || 0,
           liters: parseFloat(data.get('liters')) || 0,
@@ -1286,8 +1352,14 @@
       const form = container.querySelector('#fuel-entry-form');
       const title = container.querySelector('#fuel-modal-title');
       const lastOdoHint = container.querySelector('#fuel-form-last-odo');
+      const vehicleSelectWrap = container.querySelector('#fuel-vehicle-select-wrap');
+      const vehicleSelect = container.querySelector('#fuel-form-vehicle-select');
+      const vehicleNewWrap = container.querySelector('#fuel-new-vehicle-wrap');
+      const vehicleCustom = container.querySelector('#fuel-form-vehicle-custom');
 
       if (!modal || !form) return;
+
+      const currentVehicles = ET.getFuelVehicles();
 
       form.reset();
 
@@ -1295,7 +1367,26 @@
         title.textContent = 'Edit Fuel Fill-up';
         form.querySelector('input[name="id"]').value = log.id;
         form.querySelector('#fuel-form-date').value = log.date;
-        form.querySelector('#fuel-form-vehicle').value = log.vehicle;
+
+        if (currentVehicles.length > 0 && vehicleSelect) {
+          vehicleSelectWrap.style.display = '';
+          if (currentVehicles.includes(log.vehicle)) {
+            vehicleSelect.value = log.vehicle;
+            vehicleNewWrap.style.display = 'none';
+            vehicleCustom.value = '';
+            vehicleCustom.required = false;
+          } else {
+            vehicleSelect.value = '__new__';
+            vehicleNewWrap.style.display = '';
+            vehicleCustom.value = log.vehicle || '';
+            vehicleCustom.required = true;
+          }
+        } else {
+          if (vehicleSelectWrap) vehicleSelectWrap.style.display = 'none';
+          vehicleNewWrap.style.display = '';
+          vehicleCustom.value = log.vehicle || '';
+          vehicleCustom.required = true;
+        }
 
         const radio = form.querySelector(`input[name="fuelType"][value="${log.fuelType}"]`);
         if (radio) radio.checked = true;
@@ -1308,17 +1399,46 @@
         form.querySelector('#fuel-form-station').value = log.station || '';
         form.querySelector('#fuel-form-notes').value = log.notes || '';
         form.querySelector('#fuel-form-sync').checked = !!log.syncExpense;
+
+        const currentVehicle = log.vehicle;
+        const lastOdo = ET.getLatestOdometer(currentVehicle);
+        if (lastOdo && lastOdoHint) {
+          lastOdoHint.textContent = `Previous recorded: ${formatNum(lastOdo, 0)} km`;
+        } else if (lastOdoHint) {
+          lastOdoHint.textContent = '';
+        }
       } else {
         title.textContent = 'Log Fuel Fill-up';
         form.querySelector('input[name="id"]').value = '';
         form.querySelector('#fuel-form-date').value = new Date().toISOString().slice(0, 10);
-        form.querySelector('#fuel-form-vehicle').value = state.vehicle !== 'all' ? state.vehicle : 'Car';
+
+        let initialVehicle = '';
+        if (currentVehicles.length > 0 && vehicleSelect) {
+          vehicleSelectWrap.style.display = '';
+          let defaultVehicle = currentVehicles[0];
+          if (state.vehicle !== 'all' && currentVehicles.includes(state.vehicle)) {
+            defaultVehicle = state.vehicle;
+          }
+          vehicleSelect.value = defaultVehicle;
+          initialVehicle = defaultVehicle;
+          vehicleNewWrap.style.display = 'none';
+          vehicleCustom.value = '';
+          vehicleCustom.required = false;
+        } else {
+          if (vehicleSelectWrap) vehicleSelectWrap.style.display = 'none';
+          vehicleNewWrap.style.display = '';
+          vehicleCustom.value = '';
+          vehicleCustom.required = true;
+        }
+
         form.querySelector('#fuel-form-fulltank').checked = true;
         form.querySelector('#fuel-form-sync').checked = false;
 
-        const lastOdo = ET.getLatestOdometer(form.querySelector('#fuel-form-vehicle').value);
+        const lastOdo = initialVehicle ? ET.getLatestOdometer(initialVehicle) : null;
         if (lastOdo && lastOdoHint) {
           lastOdoHint.textContent = `Previous recorded: ${formatNum(lastOdo, 0)} km`;
+        } else if (lastOdoHint) {
+          lastOdoHint.textContent = '';
         }
       }
 
