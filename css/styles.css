@@ -1476,7 +1476,7 @@ textarea:focus {
   letter-spacing: 0.02em;
 }
 
-.field input,
+.field input:not([type="checkbox"]):not([type="radio"]),
 .field select,
 .field textarea {
   min-height: 44px;
@@ -1496,7 +1496,7 @@ textarea:focus {
   transition: all 0.15s ease;
 }
 
-.field input:focus,
+.field input:not([type="checkbox"]):not([type="radio"]):focus,
 .field select:focus,
 .field textarea:focus {
   outline: none;
@@ -2373,7 +2373,7 @@ textarea:focus {
     gap: 0.75rem 1.25rem;
   }
 
-  .field input,
+  .field input:not([type="checkbox"]):not([type="radio"]),
   .field select {
     font-size: 0.9rem;
     min-height: auto;
@@ -3134,18 +3134,70 @@ textarea:focus {
 .fuel-checkbox-label {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+  font-weight: 500;
   color: var(--text);
   cursor: pointer;
   user-select: none;
+  min-height: 44px;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .fuel-checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--brand-primary);
-  cursor: pointer;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: var(--surface) !important;
+  border: 2px solid var(--border) !important;
+  border-radius: 6px !important;
+  display: inline-grid !important;
+  place-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.fuel-checkbox-label input[type="checkbox"]:hover {
+  border-color: var(--brand-secondary) !important;
+}
+
+.fuel-checkbox-label input[type="checkbox"]:focus {
+  outline: none !important;
+  border-color: var(--brand-primary) !important;
+  box-shadow: 0 0 0 3px rgba(15, 62, 54, 0.15) !important;
+}
+
+.fuel-checkbox-label input[type="checkbox"]:checked {
+  background: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+}
+
+.fuel-checkbox-label input[type="checkbox"]::after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 10px;
+  border: solid #ffffff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+  margin-top: -2px;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.fuel-checkbox-label input[type="checkbox"]:checked::after {
+  opacity: 1;
 }
 
 .full-width {

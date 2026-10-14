@@ -712,7 +712,7 @@
               </div>
 
               <div class="field" style="justify-content: flex-end; padding-bottom: 0.5rem;">
-                <label class="fuel-checkbox-label">
+                <label class="fuel-checkbox-label" for="fuel-form-fulltank">
                   <input type="checkbox" id="fuel-form-fulltank" name="isFullTank" checked />
                   <span>Full Tank Fill-up</span>
                 </label>
@@ -725,7 +725,7 @@
               </div>
 
               <div class="field full-width">
-                <label class="fuel-checkbox-label">
+                <label class="fuel-checkbox-label" for="fuel-form-sync">
                   <input type="checkbox" id="fuel-form-sync" name="syncExpense" />
                   <span>Also record in Monthly Expenses (Dashboard Spent)</span>
                 </label>
